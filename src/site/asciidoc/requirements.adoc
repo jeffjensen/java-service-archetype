@@ -1,0 +1,152 @@
+= Requirements
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+Create a Maven archetype named `java-service-archetype` that generates a
+structured multi-module Java service project. In addition to the standard Maven
+coordinates (`groupId`, `artifactId`, `version`), prompt the user for the
+properties below, then produce the module structure described in this document.
+
+== Prompts
+
+=== `package` — base package
+
+Prompt for the base Java package for the application (e.g. `com.example.myapp`).
+All module sub-packages are derived from this value as described in
+<<source-structure>>.
+
+=== `integrations`
+
+Prompt for a comma-separated list of `type:name` pairs, one per external data
+source or system (e.g. `database:users,rest:orders,graphql:catalog`).
+
+* Abbreviate the `database` type to `db` in all generated module and package
+  names; use all other types as-is.
+* Normalize all type and name values to lowercase.
+* Silently skip malformed entries (missing colon, blank type or name).
+* No default — leave blank to generate a project with no integration modules.
+
+=== `singleService` (default: `y`)
+
+Ask whether the application has a single unnamed service area.
+
+* `y` — generate one module named `service`; ignore `serviceAreas`.
+* `n` — use `serviceAreas` to name the service modules.
+
+=== `serviceAreas` (default: empty)
+
+Used when `singleService=n`. Prompt for a comma-separated list of service area
+names (e.g. `orders,inventory,notifications`). Generate a `service-{name}`
+module for each non-blank name. If no non-blank names are provided, fall back
+to a single module named `service`.
+
+=== `presentationTypes` (default: `rest`)
+
+Prompt for a comma-separated list of presentation-tier types
+(e.g. `rest,graphql`).
+
+* Normalize all type values to lowercase.
+* Leave blank (or provide only blank entries) to generate a project with no
+  presentation modules.
+
+== Module Structure
+
+Generate all modules as siblings of a `parent/` directory.
+Do not create a `pom.xml` at the project root.
+
+=== `parent/`
+
+* `<packaging>pom</packaging>`
+* List every sibling module in `<modules>` using `../module` relative paths,
+  sorted alphabetically.
+* List every sibling module in `<dependencyManagement>` pinned to
+  `${project.version}`, sorted alphabetically by `artifactId`.
+* Properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding via
+  `project.build.sourceEncoding`.
+* `<pluginManagement>` — declare pinned versions for `maven-compiler-plugin`,
+  `maven-failsafe-plugin`, `maven-jar-plugin` (configured with `skipIfEmpty=true`),
+  and `maven-surefire-plugin`.
+
+=== Child module POMs
+
+Every module except `parent/` must declare `parent/pom.xml` as its parent
+using `<relativePath>../parent/pom.xml</relativePath>`.
+
+=== `common-domain`
+
+Shared domain classes. No dependencies on other generated modules.
+
+=== `common-testing`
+
+Shared test utilities.
+
+* Dependency: `common-domain`
+* No test-scope Java packages (the `src/test/java` directory is created but contains no source files).
+
+=== Per integration: `domain-{type}-{name}` and `integration-{type}-{name}`
+
+For each `type:name` integration entry, generate two modules
+(e.g. `domain-db-users` and `integration-db-users`):
+
+* `domain-{type}-{name}` — domain classes for this data source.
+  Dependency: `common-domain`.
+* `integration-{type}-{name}` — implementation classes (DAOs, repositories,
+  clients, etc.).
+  Dependencies: `common-domain`, `domain-{type}-{name}`.
+  Configure `maven-failsafe-plugin` with the `integration-test` and `verify` goals.
+
+=== Per service area: `service` or `service-{name}`
+
+Business logic for a service area.
+Dependency: `common-domain`.
+
+=== Per presentation tier: `domain-{type}` and `presentation-{type}`
+
+For each presentation type, generate two modules
+(e.g. `domain-rest` and `presentation-rest`):
+
+* `domain-{type}` — domain classes for this presentation tier.
+  Dependency: `common-domain`.
+* `presentation-{type}` — request-handling classes (controllers, etc.).
+  Dependencies: `common-domain`, `domain-{type}`.
+
+=== `app`
+
+Assembles the runnable artifact (e.g. Spring Boot uber jar).
+Depend on all generated modules except `acceptance-tests`, `common-testing`,
+and `app` itself.
+
+=== `acceptance-tests`
+
+Functional tests that exercise the application end-to-end.
+No main-scope Java packages (the `src/main/java` directory is created but contains no source files).
+
+* Dependencies: `app`, `common-domain`, all `domain-{type}-{name}` modules,
+  all `domain-{type}` (presentation) modules.
+* Do not depend on service modules or integration implementation modules.
+* Configure `maven-failsafe-plugin` with the `integration-test` and `verify` goals.
+
+[[source-structure]]
+== Source Structure
+
+Each module's source root is the package derived from the base package prompt.
+Place a `package-info.java` in each leaf package directory with a Javadoc comment
+describing the package's purpose.
+The package for each module is:
+
+[cols="1,1"]
+|===
+|Module |Package
+
+|`common-domain`             |`${base.package}.common.domain`
+|`common-testing`            |`${base.package}.common.testing`
+|`domain-{type}-{name}`      |`${base.package}.domain.{type}.{name}`
+|`integration-{type}-{name}` |`${base.package}.integration.{type}.{name}`
+|`service`                   |`${base.package}.service`
+|`service-{name}`            |`${base.package}.service.{name}`
+|`domain-{type}`             |`${base.package}.domain.{type}`
+|`presentation-{type}`       |`${base.package}.presentation.{type}`
+|`app`                       |`${base.package}.app`
+|`acceptance-tests`          |`${base.package}.at`
+|===
