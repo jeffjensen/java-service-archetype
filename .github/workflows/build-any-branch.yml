@@ -1,0 +1,36 @@
+name: Build any branch
+
+on:
+  push:
+    paths-ignore:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/jdk-setup
+      - name: Build and verify
+        run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean verify
+      - name: Submit dependencies to GitHub
+        if: github.actor != 'dependabot[bot]'
+        uses: advanced-security/maven-dependency-submission-action@v5
