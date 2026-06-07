@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>${groupId}</groupId>
+  <artifactId>${artifactId}</artifactId>
+  <version>${version}</version>
+  <packaging>pom</packaging>
+  <!--
+    This file is a required placeholder consumed by the Maven Archetype Plugin.
+    It is immediately deleted by archetype-post-generate.groovy, which creates
+    parent/pom.xml as the real aggregator/parent with <modules> and
+    <dependencyManagement>.
+  -->
+</project>

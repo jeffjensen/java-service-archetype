@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<archetype-descriptor
+    xmlns="https://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.1.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.1.0
+    https://maven.apache.org/xsd/archetype-descriptor-1.1.0.xsd"
+    name="java-service-archetype">
+
+  <!--
+    All module creation is handled by archetype-post-generate.groovy.
+    These required properties drive what the script generates.
+
+    PROMPT GUIDE
+    ============
+    integrations
+      Comma-separated list of  type:name  pairs.
+      Supported types: database, rest, graphql, file, email, jms, kafka, ...
+      The "database" type is abbreviated to "db" in module/package names.
+      Example: database:users,rest:orders,graphql:catalog
+
+    singleService
+      Answer "y" if the application has a single service/business-logic area.
+      The module will be named "service".
+      Answer "n" to provide individual area names via the serviceAreas property.
+
+    serviceAreas
+      Used only when singleService=n.
+      Comma-separated names for each business-logic area.
+      Each area becomes a "service-{name}" module.
+      Example: orders,inventory,notifications
+
+    presentationTypes
+      Comma-separated list of API / presentation-tier types.
+      Supported types: rest, graphql, soap, grpc, ...
+      Example: rest,graphql
+  -->
+
+  <requiredProperties>
+
+    <requiredProperty key="integrations">
+      <!-- No default: at least one integration is expected.
+           Format: type:name[,type:name,...]
+           Example: database:main,rest:payments -->
+    </requiredProperty>
+
+    <requiredProperty key="singleService">
+      <defaultValue>y</defaultValue>
+      <!-- y → one "service" module; n → use serviceAreas below -->
+    </requiredProperty>
+
+    <requiredProperty key="serviceAreas">
+      <defaultValue></defaultValue>
+      <!-- Comma-separated names, e.g. orders,inventory  (ignored if singleService=y) -->
+    </requiredProperty>
+
+    <requiredProperty key="presentationTypes">
+      <defaultValue>rest</defaultValue>
+      <!-- Comma-separated types, e.g. rest,graphql -->
+    </requiredProperty>
+
+  </requiredProperties>
+
+  <!--
+    No static fileSets or module declarations here.
+    The post-generate Groovy script constructs the entire module tree.
+  -->
+
+</archetype-descriptor>
