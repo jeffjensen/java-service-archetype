@@ -1,0 +1,50 @@
+= Java Service Archetype
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+Maven archetype that generates a structured multi-module Java service project.
+Describe your integrations, service areas, and presentation architectural tiers at generation time;
+the archetype builds the full module tree and wires up all POMs.
+
+== Quick Start
+
+[source,bash]
+----
+mvn archetype:generate \
+  -DarchetypeGroupId=io.github.jeffjensen \
+  -DarchetypeArtifactId=java-service-archetype \
+  -DarchetypeVersion=1.0.0-SNAPSHOT
+----
+
+Maven prompts for standard coordinates (`groupId`, `artifactId`, `version`, `package`)
+followed by four archetype-specific properties.
+See link:usage.html[Usage] for the full prompts reference.
+
+== Example Output
+
+Given `integrations=database:users,rest:orders`, `singleService=y`, `presentationTypes=rest`,
+the archetype produces:
+
+[source]
+----
+my-service/
+├── parent/                     (aggregator POM — build entry point)
+│   └── pom.xml
+├── acceptance-tests/
+├── app/
+├── common-domain/
+├── common-testing/
+├── domain-db-users/            (integration domain — database:users)
+├── domain-rest/                (presentation domain — presentationTypes=rest)
+├── domain-rest-orders/         (integration domain — rest:orders)
+├── integration-db-users/
+├── integration-rest-orders/
+├── presentation-rest/
+└── service/
+----
+
+`parent/` is a sibling directory — there is no `pom.xml` at the project root.
+Each module contains a full `src/` scaffold and a `package-info.java` in every leaf package.
+
+See link:modules.html[Modules] for a description of each module, its dependencies, and how to build.

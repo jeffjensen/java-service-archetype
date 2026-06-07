@@ -1,0 +1,125 @@
+= Generated Modules
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+Every module contains a full `src/` scaffold
+(`src/main/java`, `src/main/resources`, `src/test/java`, `src/test/resources`)
+and a `package-info.java` in every applicable leaf package directory.
+
+== Fixed Modules
+
+These modules are always generated regardless of input.
+
+`common-domain`::
+Domain classes shared across all other modules. No dependencies on other generated modules.
++
+_Package_: `{base.package}.common.domain`
+
+`common-testing`::
+Shared test utilities. Has no test-scope Java packages.
++
+_Package_: `{base.package}.common.testing` +
+_Depends on_: `common-domain`
+
+`service` _or_ `service-{name}`::
+Business logic for a service area (see `singleService` and `serviceAreas` prompts).
++
+_Package_: `{base.package}.service` or `{base.package}.service.{name}` +
+_Depends on_: `common-domain`
+
+`app`::
+Application assembly — produces the runnable artifact (e.g. Spring Boot über-jar).
++
+_Package_: `{base.package}.app` +
+_Depends on_: all non-test modules (`common-domain`, all domain and integration modules,
+all service modules, all presentation modules)
+
+`acceptance-tests`::
+Functional acceptance tests that exercise the application from the outside.
+Has no main-scope Java packages.
++
+_Package_: `{base.package}.at` +
+_Depends on_: `app`, `common-domain`, all `domain-{type}-{name}` integration domain modules,
+all `domain-{type}` presentation domain modules +
+_Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
+
+== Integration Modules
+
+Generated per `type:name` pair in the `integrations` prompt.
+The `database` type is abbreviated to `db` in all names.
+
+`domain-{type}-{name}`::
+Domain classes for a specific integration (e.g. `domain-db-users`, `domain-rest-orders`).
++
+_Package_: `{base.package}.domain.{type}.{name}` +
+_Depends on_: `common-domain`
+
+`integration-{type}-{name}`::
+Integration implementation classes — DAOs, Spring Data JPA repositories, REST clients, etc.
+(e.g. `integration-db-users`, `integration-rest-orders`).
++
+_Package_: `{base.package}.integration.{type}.{name}` +
+_Depends on_: `common-domain`, `domain-{type}-{name}` +
+_Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
+
+== Presentation Modules
+
+Generated per type in the `presentationTypes` prompt.
+
+`domain-{type}`::
+Domain classes for a presentation tier (e.g. `domain-rest`, `domain-graphql`).
++
+_Package_: `{base.package}.domain.{type}` +
+_Depends on_: `common-domain`
+
+`presentation-{type}`::
+Request-handling classes — controllers, resolvers, etc.
+(e.g. `presentation-rest`, `presentation-graphql`).
++
+_Package_: `{base.package}.presentation.{type}` +
+_Depends on_: `common-domain`, `domain-{type}`
+
+== Parent POM
+
+`parent/pom.xml` is the aggregator and BOM for all sibling modules.
+There is no `pom.xml` at the project root — `parent/` is a sibling of all other modules.
+
+It contains:
+
+* `<packaging>pom</packaging>`
+* `<modules>` — all sibling modules referenced as `../module` relative paths, sorted alphabetically
+* `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`
+* Common properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding
+* `<pluginManagement>` — pinned versions for `maven-compiler-plugin`, `maven-failsafe-plugin`,
+  `maven-jar-plugin` (with `skipIfEmpty=true`), and `maven-surefire-plugin`
+
+To build a generated project:
+
+[source,bash]
+----
+cd my-service/parent
+mvn verify
+----
+
+Use `mvn install` instead if other local projects need to consume the generated modules from your local Maven repository.
+
+== Package Reference
+
+All type and name segments in package names are lowercased.
+
+[cols="1,1"]
+|===
+|Module |Package
+
+|`common-domain`             |`{base.package}.common.domain`
+|`common-testing`            |`{base.package}.common.testing`
+|`domain-{type}-{name}`      |`{base.package}.domain.{type}.{name}`
+|`integration-{type}-{name}` |`{base.package}.integration.{type}.{name}`
+|`service`                   |`{base.package}.service`
+|`service-{name}`            |`{base.package}.service.{name}`
+|`domain-{type}`             |`{base.package}.domain.{type}`
+|`presentation-{type}`       |`{base.package}.presentation.{type}`
+|`app`                       |`{base.package}.app`
+|`acceptance-tests`          |`{base.package}.at`
+|===

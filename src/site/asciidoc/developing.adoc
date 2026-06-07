@@ -1,0 +1,121 @@
+= Developing
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+== Prerequisites
+
+* Java 21 or later (required because the integration tests build the generated projects, which set `maven.compiler.release=21`)
+* Maven 3.9 or later (or use the included wrapper: `./mvnw` / `mvnw.cmd`, which provides 3.9.9)
+
+== Build and Install
+
+The project includes a Maven wrapper — no local Maven installation required.
+
+[source,bash]
+----
+./mvnw install
+----
+
+This installs the archetype into your local Maven repository so it can be used immediately.
+
+On Windows use `mvnw.cmd install`.
+
+== Running the Full Build
+
+Run the full build including all integration tests:
+
+[source,bash]
+----
+./mvnw verify
+----
+
+On Windows use `mvnw.cmd verify`.
+
+== Integration Tests
+
+Each integration test generates a complete project from the archetype using a fixed set of inputs,
+then runs Groovy assertions against the result.
+All test cases live under `src/test/resources/projects/`.
+
+=== Test structure
+
+Each test is a directory containing three files:
+
+`archetype.properties`::
+Property values passed to the archetype at generation time — the Maven coordinates plus the
+four archetype-specific properties (`integrations`, `singleService`, `serviceAreas`, `presentationTypes`).
+
+`goal.txt`::
+The Maven goal to run against the generated project after generation.
+All tests use `-f parent/pom.xml verify`.
+
+`verify.groovy`::
+Groovy assertions that run after generation.
+The script receives `basedir` pointing at the generated project root and asserts on
+file existence, POM content, source structure, and dependency wiring.
+
+=== Test output
+
+Generated projects are written to:
+
+[source]
+----
+target/test-classes/projects/{test-name}/project/{artifactId}/
+----
+
+These files persist until the next `mvn clean` and can be inspected directly to see exactly
+what the archetype produces for a given set of inputs.
+
+Each test also writes a `build.log` in the generated project root.
+The `verify.groovy` script prepends the test name and the `archetype.properties` content
+to the log before appending any output, so a single file captures both the inputs and the
+build result for that test run.
+
+=== Running a single integration test
+
+To run one test case in isolation (faster feedback during development):
+
+[source,bash]
+----
+./mvnw verify -Dinvoker.test=basic
+----
+
+Replace `basic` with the name of the directory under `src/test/resources/projects/`.
+On Windows use `mvnw.cmd verify -Dinvoker.test=basic`.
+
+=== Adding a new integration test
+
+. Create a directory under `src/test/resources/projects/{test-name}/`.
+. Add `archetype.properties` with the inputs to test.
+. Add `goal.txt` containing `-f parent/pom.xml verify`.
+. Add `verify.groovy` with assertions against the generated output.
+. Run `./mvnw verify` — the new test is picked up automatically.
+
+== Project Structure
+
+[source]
+----
+src/
+├── main/resources/
+│   ├── META-INF/
+│   │   ├── archetype-post-generate.groovy  (all module generation logic)
+│   │   └── maven/
+│   │       └── archetype-metadata.xml      (property declarations and defaults)
+│   └── archetype-resources/
+│       └── pom.xml                         (placeholder; deleted by post-generate script)
+├── site/
+│   ├── site.xml                            (navigation)
+│   └── asciidoc/                           (site pages)
+└── test/resources/projects/
+    └── {test-name}/
+        ├── archetype.properties
+        ├── goal.txt
+        └── verify.groovy
+----
+
+All module generation logic lives in `archetype-post-generate.groovy`.
+It reads the archetype properties, computes the full module list, and writes every
+`pom.xml`, source directory, and `package-info.java` from scratch.
+The placeholder `archetype-resources/pom.xml` satisfies the Maven Archetype Plugin's
+packaging requirements and is deleted immediately by the script.

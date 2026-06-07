@@ -1,0 +1,132 @@
+= Usage
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+== Generate a Project
+
+[source,bash]
+----
+mvn archetype:generate \
+  -DarchetypeGroupId=io.github.jeffjensen \
+  -DarchetypeArtifactId=java-service-archetype \
+  -DarchetypeVersion=1.0.0-SNAPSHOT
+----
+
+Maven first prompts for the standard Maven coordinates:
+
+[cols="1,2"]
+|===
+|Prompt |Description
+
+|`groupId`    |Maven group ID (e.g. `com.example`)
+|`artifactId` |Maven artifact ID and root directory name (e.g. `my-service`)
+|`version`    |Initial version (default: `1.0.0-SNAPSHOT`)
+|`package`    |Base Java package (e.g. `com.example.myservice`)
+|===
+
+It then prompts for the four archetype-specific properties below.
+The generated project is created in `./{artifactId}/` relative to the current directory.
+
+== `integrations`
+
+Comma-separated `type:name` pairs, one per external data source or system.
+
+[source]
+----
+database:users,rest:orders,graphql:catalog
+----
+
+Supported types include `database`, `rest`, `graphql`, `file`, `email`, `jms`, `kafka`,
+and any other label you choose.
+
+* The `database` type is abbreviated to `db` in all generated module and package names.
+* All type and name values are normalized to lowercase regardless of the case supplied.
+* Malformed entries (missing colon, blank type, or blank name) are silently skipped.
+* Leave blank to generate a project with no integration modules.
+
+Each `type:name` pair produces a `domain-{type}-{name}` module and an `integration-{type}-{name}` module.
+
+== `singleService` (default: `y`)
+
+Whether the application has a single unnamed service area.
+
+* `y` — one module named `service` is created; `serviceAreas` is ignored.
+* `n` — the `serviceAreas` value drives the service module names.
+
+== `serviceAreas` (default: empty)
+
+Used when `singleService=n`; ignored when `singleService=y`.
+Comma-separated names for each business-logic area.
+
+[source]
+----
+orders,inventory,notifications
+----
+
+Each non-blank name produces a `service-{name}` module.
+If `singleService=n` and no non-blank names are provided, the archetype falls back to a single module named `service`.
+
+== `presentationTypes` (default: `rest`)
+
+Comma-separated API / presentation-tier types.
+
+[source]
+----
+rest,graphql
+----
+
+Supported types include `rest`, `graphql`, `soap`, `grpc`, and any other label you choose.
+
+* All type values are normalized to lowercase regardless of the case supplied.
+* Leave blank to generate a project with no presentation modules.
+
+Each type produces a `domain-{type}` module and a `presentation-{type}` module.
+
+== Examples
+
+=== Minimal project
+
+[cols="1,2"]
+|===
+|Property |Value
+
+|`integrations`      |(blank)
+|`singleService`     |`y`
+|`presentationTypes` |(blank)
+|===
+
+Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `service`.
+
+=== Typical single-service REST API backed by a database
+
+[cols="1,2"]
+|===
+|Property |Value
+
+|`integrations`      |`database:users`
+|`singleService`     |`y`
+|`presentationTypes` |`rest`
+|===
+
+Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
+`domain-db-users`, `domain-rest`, `integration-db-users`, `presentation-rest`, `service`.
+
+=== Full multi-service project
+
+[cols="1,2"]
+|===
+|Property |Value
+
+|`integrations`      |`database:users,rest:orders,graphql:catalog`
+|`singleService`     |`n`
+|`serviceAreas`      |`orders,inventory`
+|`presentationTypes` |`rest,graphql`
+|===
+
+Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
+`domain-db-users`, `domain-graphql`, `domain-graphql-catalog`,
+`domain-rest`, `domain-rest-orders`,
+`integration-db-users`, `integration-graphql-catalog`, `integration-rest-orders`,
+`presentation-graphql`, `presentation-rest`,
+`service-inventory`, `service-orders`.

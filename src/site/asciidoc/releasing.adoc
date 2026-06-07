@@ -1,0 +1,140 @@
+= Releasing
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+
+Releases are published to Maven Central using the Maven Release Plugin.
+`release:perform` invokes `mvn deploy`, which the `central-publishing-maven-plugin` intercepts
+to upload, validate, and publish the artifact automatically.
+
+== Prerequisites
+
+* On the `main` branch, with a clean working tree — no uncommitted changes
+* All tests green: `./mvnw verify`
+* GPG key available in your local keyring for artifact signing
+* Maven settings with Central credentials (see <<settings-xml>>)
+
+[[settings-xml]]
+== `~/.m2/settings.xml`
+
+The deploy needs a `<server>` entry whose `<id>` matches `publishingServerId` in the POM (`central-publish`):
+
+[source,xml]
+----
+<settings>
+  <servers>
+    <server>
+      <id>central-publish</id>
+      <username>YOUR_CENTRAL_USERNAME</username>
+      <password>YOUR_CENTRAL_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+----
+
+Obtain credentials from https://central.sonatype.com[central.sonatype.com] under Account → Generate User Token.
+
+== Step 1 — Prepare
+
+`release:prepare` validates the build, sets the release version, commits the POM change
+(including updating `project.build.outputTimestamp`), creates a git tag, increments to the
+next development version, and pushes all commits and the tag:
+
+[source,bash]
+----
+./mvnw release:prepare
+----
+
+Maven prompts for three values:
+
+[cols="1,1,2"]
+|===
+|Prompt |Default |Example
+
+|Release version      |current version without `-SNAPSHOT` |`1.0.0`
+|SCM tag              |`v{releaseVersion}`                 |`v1.0.0`
+|Next development version |patch increment + `-SNAPSHOT`  |`1.0.1-SNAPSHOT`
+|===
+
+To run non-interactively:
+
+[source,bash]
+----
+./mvnw release:prepare \
+  -DreleaseVersion=1.0.0 \
+  -Dtag=v1.0.0 \
+  -DdevelopmentVersion=1.0.1-SNAPSHOT \
+  -B
+----
+
+If preparation fails for any reason, roll back cleanly:
+
+[source,bash]
+----
+./mvnw release:rollback
+----
+
+This reverses the release-version POM commit, resets the version back to the development snapshot, and removes the local tag.
+If `release:prepare` already pushed commits and the tag to the remote, delete the remote tag manually:
+
+[source,bash]
+----
+git push --delete origin v1.0.0
+----
+
+== Step 2 — Perform
+
+`release:perform` checks out the tagged commit into `target/checkout`, builds it with the
+`release` profile active (which enables GPG signing), and runs `mvn deploy`:
+
+[source,bash]
+----
+./mvnw release:perform
+----
+
+The `central-publishing-maven-plugin` uploads the signed bundle to Maven Central,
+waits for validation, and publishes automatically (`autoPublish=true`, `waitUntil=published`).
+Expect this step to take a few minutes.
+
+== GPG Signing
+
+Maven Central requires all release artifacts to be signed.
+The `release` profile (activated automatically by `release:perform` via `releaseProfiles=release`)
+runs `maven-gpg-plugin` during the `verify` phase.
+
+If your GPG key requires a passphrase and you are not using an agent, pass it on the command line:
+
+[source,bash]
+----
+./mvnw release:perform -Dgpg.passphrase=YOUR_PASSPHRASE
+----
+
+Using `gpg-agent` is the preferred approach — it avoids exposing the passphrase in shell history.
+
+== Reproducible Builds
+
+`project.build.outputTimestamp` in the POM pins the timestamp embedded in JAR manifests,
+ZIP entries, and other build outputs.
+Without it, every build produces a different binary even from the same source, making
+byte-for-byte verification impossible.
+
+`release:prepare` updates `project.build.outputTimestamp` to the current UTC instant
+automatically before committing the release POM, so released artifacts carry the exact
+timestamp of the release commit.
+
+During development the property holds the initial project creation date
+(`2026-06-07T00:00:00Z`), ensuring that `./mvnw verify` is reproducible regardless of
+when the build runs.
+
+To verify build-plan reproducibility locally:
+
+[source,bash]
+----
+./mvnw artifact:check-buildplan
+----
+
+== Step 3 — After the Release
+
+. Confirm the artifact appears on https://central.sonatype.com[Maven Central] (typically within minutes).
+. Update the `archetypeVersion` in the link:usage.html[Usage] examples and the `README.adoc` `archetype:generate` command to the released version.
+. Create a GitHub Release from the tag, summarising the changes.

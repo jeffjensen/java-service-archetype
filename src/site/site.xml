@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/DECORATION/1.8.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/DECORATION/1.8.0
+         https://maven.apache.org/xsd/decoration-1.8.0.xsd"
+         name="Java Service Archetype">
+
+  <skin>
+    <groupId>org.apache.maven.skins</groupId>
+    <artifactId>maven-fluido-skin</artifactId>
+    <version>2.1.0</version>
+  </skin>
+
+  <body>
+    <links>
+      <item name="GitHub" href="https://github.com/jeffjensen/java-service-archetype"/>
+    </links>
+
+    <menu name="Documentation">
+      <item name="Overview"     href="index.html"/>
+      <item name="Usage"        href="usage.html"/>
+      <item name="Modules"      href="modules.html"/>
+      <item name="Developing"   href="developing.html"/>
+      <item name="Releasing"    href="releasing.html"/>
+      <item name="Requirements" href="requirements.html"/>
+    </menu>
+    <menu ref="reports"/>
+  </body>
+</project>
