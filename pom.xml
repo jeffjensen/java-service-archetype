@@ -4,7 +4,7 @@
 
   <groupId>io.github.jeffjensen</groupId>
   <artifactId>java-service-archetype</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <packaging>maven-archetype</packaging>
 
   <name>Java Service Archetype</name>
@@ -27,7 +27,7 @@
     <java.version>21</java.version>
     <maven.compiler.release>${java.version}</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2026-06-08T01:15:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-06-08T01:17:03Z</project.build.outputTimestamp>
 
     <!-- VERSIONS -->
     <maven-archetype-plugin.version>3.4.1</maven-archetype-plugin.version>
