@@ -138,6 +138,7 @@
             <publishingServerId>central-publish</publishingServerId>
             <autoPublish>true</autoPublish>
             <waitUntil>published</waitUntil>
+            <deploymentName>java-service-archetype</deploymentName>
           </configuration>
         </plugin>
       </plugins>
