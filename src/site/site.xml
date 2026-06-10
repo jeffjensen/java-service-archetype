@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/DECORATION/1.8.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/DECORATION/1.8.0
-         https://maven.apache.org/xsd/decoration-1.8.0.xsd"
-         name="Java Service Archetype">
+<site xmlns="http://maven.apache.org/SITE/2.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SITE/2.0.0 https://maven.apache.org/xsd/site-2.0.0.xsd">
 
   <skin>
     <groupId>org.apache.maven.skins</groupId>
@@ -13,17 +11,21 @@
 
   <body>
     <links>
-      <item name="GitHub" href="https://github.com/jeffjensen/java-service-archetype"/>
+      <item name="main" href="https://github.com/jeffjensen/java-service-archetype/actions/workflows/build-any-branch.yml?query=branch%3Amain">
+        <image src="https://github.com/jeffjensen/java-service-archetype/actions/workflows/build-any-branch.yml/badge.svg?branch=main" />
+      </item>
+      <item name="GitHub" href="https://github.com/jeffjensen/java-service-archetype" />
     </links>
 
-    <menu name="Documentation">
-      <item name="Overview"     href="index.html"/>
-      <item name="Usage"        href="usage.html"/>
-      <item name="Modules"      href="modules.html"/>
-      <item name="Developing"   href="developing.html"/>
-      <item name="Releasing"    href="releasing.html"/>
-      <item name="Requirements" href="requirements.html"/>
+    <menu name="Using">
+      <item name="Overview" href="index.html" />
+      <item name="Usage" href="usage.html" />
     </menu>
-    <menu ref="reports"/>
+    <menu name="Developing">
+      <item name="Building" href="building.html" />
+      <item name="Releasing" href="releasing.html" />
+      <item name="Requirements" href="requirements.html" />
+    </menu>
+    <menu ref="reports" />
   </body>
-</project>
+</site>
