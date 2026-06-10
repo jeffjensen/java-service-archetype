@@ -1,5 +1,5 @@
 // ── Test: blank-presentation-types ────────────────────────────────────────────
-// integrations=database:main  singleService=y  presentationTypes=", ,"
+// integrations=database:main  serviceAreas=,  presentationTypes=", ,"
 // Covers: a non-empty presentationTypes value whose entries are all blank after
 //         trimming is filtered to an empty list — no domain-{type} or
 //         presentation-{type} modules generated; distinct from no-presentation

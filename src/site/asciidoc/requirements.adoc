@@ -27,19 +27,12 @@ source or system (e.g. `database:users,rest:orders,graphql:catalog`).
 * Silently skip malformed entries (missing colon, blank type or name).
 * No default — leave blank to generate a project with no integration modules.
 
-=== `singleService` (default: `y`)
-
-Ask whether the application has a single unnamed service area.
-
-* `y` — generate one module named `service`; ignore `serviceAreas`.
-* `n` — use `serviceAreas` to name the service modules.
-
 === `serviceAreas` (default: empty)
 
-Used when `singleService=n`. Prompt for a comma-separated list of service area
-names (e.g. `orders,inventory,notifications`). Generate a `service-{name}`
-module for each non-blank name. If no non-blank names are provided, fall back
-to a single module named `service`.
+Prompt for a comma-separated list of service area names
+(e.g. `orders,inventory,notifications`). Generate a `service-{name}` module for
+each non-blank name. Leave blank to generate a single module named `service`;
+if no non-blank names are provided, fall back to the same single `service` module.
 
 === `presentationTypes` (default: `rest`)
 

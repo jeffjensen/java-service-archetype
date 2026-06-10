@@ -1,5 +1,5 @@
 // ── Test: uppercase-types ─────────────────────────────────────────────────────
-// integrations=DATABASE:Users,REST:Orders  singleService=y  presentationTypes=REST
+// integrations=DATABASE:Users,REST:Orders  serviceAreas=,  presentationTypes=REST
 // Covers: integration type and name inputs are normalised to lowercase;
 //         'DATABASE' is abbreviated to 'db'; all generated module names are lowercase
 //         regardless of what case the user supplied

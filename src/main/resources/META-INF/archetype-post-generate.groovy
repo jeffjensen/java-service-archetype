@@ -115,7 +115,6 @@ def pkg     = props.getProperty('package') ?: groupId
 def pkgPath = pkg.replace('.', '/')
 
 def integrationsInput      = (props.getProperty('integrations')      ?: '').trim()
-def singleServiceInput     = (props.getProperty('singleService')     ?: 'y').trim()
 def serviceAreasInput      = (props.getProperty('serviceAreas')      ?: '').trim()
 def presentationTypesInput = (props.getProperty('presentationTypes') ?: 'rest').trim()
 
@@ -135,9 +134,8 @@ if (integrationsInput) {
 
 // ─── Parse Service Areas ──────────────────────────────────────────────────────
 
-def isSingle = singleServiceInput.equalsIgnoreCase('y')
 def serviceModules
-if (isSingle || serviceAreasInput.isEmpty()) {
+if (serviceAreasInput.isEmpty()) {
     serviceModules = ['service']
 } else {
     serviceModules = serviceAreasInput.split(',')

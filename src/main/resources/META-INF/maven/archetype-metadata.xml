@@ -18,15 +18,10 @@
       The "database" type is abbreviated to "db" in module/package names.
       Example: database:users,rest:orders,graphql:catalog
 
-    singleService
-      Answer "y" if the application has a single service/business-logic area.
-      The module will be named "service".
-      Answer "n" to provide individual area names via the serviceAreas property.
-
     serviceAreas
-      Used only when singleService=n.
-      Comma-separated names for each business-logic area.
-      Each area becomes a "service-{name}" module.
+      Leave blank for a single module named "service".
+      Enter comma-separated names to generate multiple service areas:
+        each name produces a "service-{name}" module.
       Example: orders,inventory,notifications
 
     presentationTypes
@@ -37,20 +32,19 @@
 
   <requiredProperties>
 
+    <requiredProperty key="version">
+      <defaultValue>1.0.0-SNAPSHOT</defaultValue>
+    </requiredProperty>
+
     <requiredProperty key="integrations">
       <!-- No default: at least one integration is expected.
            Format: type:name[,type:name,...]
            Example: database:main,rest:payments -->
     </requiredProperty>
 
-    <requiredProperty key="singleService">
-      <defaultValue>y</defaultValue>
-      <!-- y → one "service" module; n → use serviceAreas below -->
-    </requiredProperty>
-
     <requiredProperty key="serviceAreas">
       <defaultValue></defaultValue>
-      <!-- Comma-separated names, e.g. orders,inventory  (ignored if singleService=y) -->
+      <!-- blank → single "service" module; or comma-separated names, e.g. orders,inventory -->
     </requiredProperty>
 
     <requiredProperty key="presentationTypes">

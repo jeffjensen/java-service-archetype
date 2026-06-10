@@ -1,5 +1,5 @@
 // ── Test: no-presentation ─────────────────────────────────────────────────────
-// integrations=database:main  singleService=y  presentationTypes= (empty)
+// integrations=database:main  serviceAreas=,  presentationTypes= (empty)
 // Covers: empty presentationTypes → no domain-{type}/presentation-{type} modules;
 //         headless service with only integration + service layers
 

@@ -1,5 +1,5 @@
 // ── Test: basic ───────────────────────────────────────────────────────────────
-// integrations=database:main  singleService=y  presentationTypes=rest
+// integrations=database:main  serviceAreas=,  presentationTypes=rest
 // Covers: db abbreviation, single service named "service", single presentation,
 //         src skeleton, parent/ module structure, app/acceptance-tests deps
 

@@ -1,5 +1,5 @@
 // ── Test: full ────────────────────────────────────────────────────────────────
-// integrations=database:users,graphql:catalog  singleService=n
+// integrations=database:users,graphql:catalog
 // serviceAreas=orders,notifications  presentationTypes=rest,graphql
 // Covers: all features together; graphql as both integration type (graphql:catalog)
 //         and presentation type (graphql) — two distinct modules, no name collision

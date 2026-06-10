@@ -23,7 +23,7 @@ _Package_: `{base.package}.common.testing` +
 _Depends on_: `common-domain`
 
 `service` _or_ `service-{name}`::
-Business logic for a service area (see `singleService` and `serviceAreas` prompts).
+Business logic for a service area (see the `serviceAreas` prompt).
 +
 _Package_: `{base.package}.service` or `{base.package}.service.{name}` +
 _Depends on_: `common-domain`

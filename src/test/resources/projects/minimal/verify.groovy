@@ -1,5 +1,5 @@
 // ── Test: minimal ─────────────────────────────────────────────────────────────
-// integrations=  singleService=y  presentationTypes= (both empty)
+// integrations=  serviceAreas=,  presentationTypes= (integrations and presentation empty)
 // Covers: absolute minimal project — no integration modules, no presentation
 //         modules; atDeps collapses to [app, common-domain]; appDeps to
 //         [common-domain, service]

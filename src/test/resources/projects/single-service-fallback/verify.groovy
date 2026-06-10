@@ -1,7 +1,7 @@
 // ── Test: single-service-fallback ────────────────────────────────────────────
-// integrations=database:main  singleService=n  serviceAreas=,  presentationTypes=graphql
-// Covers: singleService=n with effectively empty serviceAreas (comma-only) → falls back
-//         to a single plain "service" module; graphql as the sole presentation type
+// integrations=database:main  serviceAreas=,  presentationTypes=graphql
+// Covers: effectively empty serviceAreas (comma-only) → falls back to a single plain
+//         "service" module; graphql as the sole presentation type
 
 def _testName = new File(basedir, 'project').isDirectory() ? basedir.name : 'unknown'
 def _projectSubdir = new File(basedir, 'project')
@@ -36,10 +36,10 @@ def modules = [
 ]
 modules.each { m -> check("${m}/pom.xml") }
 
-// ── 3. singleService=n + empty serviceAreas falls back to plain "service" ─────
+// ── 3. Empty serviceAreas falls back to plain "service" ──────────────────────
 
 assert new File(basedir, 'service/pom.xml').exists() \
-    : "Empty serviceAreas with singleService=n must fall back to plain 'service' module"
+    : "Empty serviceAreas must fall back to plain 'service' module"
 assert !new File(basedir, 'service-').exists() \
     : "No 'service-' prefixed module should exist when serviceAreas is empty"
 

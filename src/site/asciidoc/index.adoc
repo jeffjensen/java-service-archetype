@@ -18,12 +18,12 @@ mvn archetype:generate \
 ----
 
 Maven prompts for standard coordinates (`groupId`, `artifactId`, `version`, `package`)
-followed by four archetype-specific properties.
+followed by three archetype-specific properties.
 See link:usage.html[Usage] for the full prompts reference.
 
 == Example Output
 
-Given `integrations=database:users,rest:orders`, `singleService=y`, `presentationTypes=rest`,
+Given `integrations=database:users,rest:orders`, a blank `serviceAreas`, and `presentationTypes=rest`,
 the archetype produces:
 
 [source]

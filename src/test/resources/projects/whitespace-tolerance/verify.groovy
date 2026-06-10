@@ -1,5 +1,5 @@
 // ── Test: whitespace-tolerance ────────────────────────────────────────────────
-// integrations="database : main , rest : orders"  singleService=y  presentationTypes=rest
+// integrations="database : main , rest : orders"  serviceAreas=,  presentationTypes=rest
 // Covers: spaces around ':' and ',' are trimmed; generated module names are clean;
 //         no modules with embedded spaces or double-hyphen artifacts
 

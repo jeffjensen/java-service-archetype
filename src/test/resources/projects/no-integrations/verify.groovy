@@ -1,5 +1,5 @@
 // ── Test: no-integrations ─────────────────────────────────────────────────────
-// integrations=  singleService=y  presentationTypes=rest
+// integrations=  serviceAreas=,  presentationTypes=rest
 // Covers: empty integrations → no domain-*/integration-* integration modules;
 //         fixed modules + service + presentation still created correctly
 

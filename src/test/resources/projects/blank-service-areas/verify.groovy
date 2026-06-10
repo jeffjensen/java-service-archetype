@@ -1,10 +1,10 @@
 // ── Test: blank-service-areas ─────────────────────────────────────────────────
-// integrations=database:main  singleService=n  serviceAreas=" , ,"  presentationTypes=rest
-// Covers: the serviceModules.isEmpty() fallback — singleService=n with a non-empty
-//         serviceAreas that contains only blank entries after trimming; all produce
-//         "service-" (8 chars, not > 8) so the list is empty, triggering fallback
-//         to a single plain "service" module. Distinct from single-service-fallback
-//         which takes the serviceAreasInput.isEmpty() branch.
+// integrations=database:main  serviceAreas=" , ,"  presentationTypes=rest
+// Covers: the serviceModules.isEmpty() fallback — a non-empty serviceAreas that
+//         contains only blank entries after trimming; all produce "service-" (8 chars,
+//         not > 8) so the list is empty, triggering fallback to a single plain "service"
+//         module. Distinct from single-service-fallback which takes the
+//         serviceAreasInput.isEmpty() branch.
 
 def _testName = new File(basedir, 'project').isDirectory() ? basedir.name : 'unknown'
 def _projectSubdir = new File(basedir, 'project')

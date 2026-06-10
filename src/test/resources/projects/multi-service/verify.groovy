@@ -1,6 +1,6 @@
 // ── Test: multi-service ───────────────────────────────────────────────────────
-// integrations=database:main  singleService=n  serviceAreas=orders,inventory  presentationTypes=rest
-// Covers: singleService=n path, multiple named service modules,
+// integrations=database:main  serviceAreas=orders,inventory  presentationTypes=rest
+// Covers: named serviceAreas path, multiple named service modules,
 //         no plain "service" module when names are provided
 
 def _testName = new File(basedir, 'project').isDirectory() ? basedir.name : 'unknown'
@@ -39,7 +39,7 @@ modules.each { m -> check("${m}/pom.xml") }
 // ── 3. Plain "service" module must NOT exist ──────────────────────────────────
 
 assert !new File(basedir, 'service').exists() \
-    : "With singleService=n and named areas, plain 'service' module must not be created"
+    : "With named serviceAreas, plain 'service' module must not be created"
 
 // ── 4. parent/pom.xml completeness and sort order ────────────────────────────
 

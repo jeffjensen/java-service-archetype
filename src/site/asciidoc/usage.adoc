@@ -25,7 +25,7 @@ Maven first prompts for the standard Maven coordinates:
 |`package`    |Base Java package (e.g. `com.example.myservice`)
 |===
 
-It then prompts for the four archetype-specific properties below.
+It then prompts for the three archetype-specific properties below.
 The generated project is created in `./{artifactId}/` relative to the current directory.
 
 == `integrations`
@@ -47,17 +47,10 @@ and any other label you choose.
 
 Each `type:name` pair produces a `domain-{type}-{name}` module and an `integration-{type}-{name}` module.
 
-== `singleService` (default: `y`)
-
-Whether the application has a single unnamed service area.
-
-* `y` — one module named `service` is created; `serviceAreas` is ignored.
-* `n` — the `serviceAreas` value drives the service module names.
-
 == `serviceAreas` (default: empty)
 
-Used when `singleService=n`; ignored when `singleService=y`.
-Comma-separated names for each business-logic area.
+Leave blank to generate a single module named `service`.
+Enter comma-separated names to generate named service areas instead.
 
 [source]
 ----
@@ -65,7 +58,7 @@ orders,inventory,notifications
 ----
 
 Each non-blank name produces a `service-{name}` module.
-If `singleService=n` and no non-blank names are provided, the archetype falls back to a single module named `service`.
+If no non-blank names are provided, the archetype falls back to a single module named `service`.
 
 == `presentationTypes` (default: `rest`)
 
@@ -92,7 +85,7 @@ Each type produces a `domain-{type}` module and a `presentation-{type}` module.
 |Property |Value
 
 |`integrations`      |(blank)
-|`singleService`     |`y`
+|`serviceAreas`      |(blank)
 |`presentationTypes` |(blank)
 |===
 
@@ -105,7 +98,7 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `service
 |Property |Value
 
 |`integrations`      |`database:users`
-|`singleService`     |`y`
+|`serviceAreas`      |(blank)
 |`presentationTypes` |`rest`
 |===
 
@@ -119,7 +112,6 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
 |Property |Value
 
 |`integrations`      |`database:users,rest:orders,graphql:catalog`
-|`singleService`     |`n`
 |`serviceAreas`      |`orders,inventory`
 |`presentationTypes` |`rest,graphql`
 |===

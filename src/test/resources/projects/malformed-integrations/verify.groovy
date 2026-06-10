@@ -1,5 +1,5 @@
 // ── Test: malformed-integrations ─────────────────────────────────────────────
-// integrations=database:main,,nocolon,rest:orders  singleService=y  presentationTypes=rest
+// integrations=database:main,,nocolon,rest:orders  serviceAreas=,  presentationTypes=rest
 // Covers: double-comma (empty entry) and no-colon entry are both silently skipped;
 //         valid surrounding entries are still processed correctly
 

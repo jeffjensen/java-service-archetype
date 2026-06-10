@@ -1,5 +1,5 @@
 // ── Test: multi-integration ───────────────────────────────────────────────────
-// integrations=database:users,rest:orders,jms:events  singleService=y  presentationTypes=rest
+// integrations=database:users,rest:orders,jms:events  serviceAreas=,  presentationTypes=rest
 // Covers: multiple integration types, db abbreviation, non-db types as-is,
 //         integration domain-rest-orders vs presentation domain-rest (no collision)
 
