@@ -136,5 +136,5 @@ To verify build-plan reproducibility locally:
 == Step 3 — After the Release
 
 . Confirm the artifact appears on https://central.sonatype.com[Maven Central] (typically within minutes).
-. Update the `archetypeVersion` in the link:usage.html[Usage] examples and the `README.adoc` `archetype:generate` command to the released version.
+. Update the `archetypeVersion` in the link:index.html[Quick Start], the link:usage.html[Usage] examples, and the `README.adoc` `archetype:generate` command to the released version.
 . Create a GitHub Release from the tag, summarising the changes.
