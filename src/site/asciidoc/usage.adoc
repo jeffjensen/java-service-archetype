@@ -122,3 +122,23 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
 `integration-db-users`, `integration-graphql-catalog`, `integration-rest-orders`,
 `presentation-graphql`, `presentation-rest`,
 `service-inventory`, `service-orders`.
+
+=== Full command line (non-interactive)
+
+All properties specified as `-D` flags with `-B` (batch mode) to skip interactive prompts.
+Uses the same values as the full multi-service example above.
+
+[source,bash]
+----
+mvn archetype:generate -B \
+  -DarchetypeGroupId=io.github.jeffjensen \
+  -DarchetypeArtifactId=java-service-archetype \
+  -DarchetypeVersion=1.0.0 \
+  -DgroupId=com.example \
+  -DartifactId=my-service \
+  -Dversion=1.0.0-SNAPSHOT \
+  -Dpackage=com.example.myservice \
+  -Dintegrations=database:users,rest:orders,graphql:catalog \
+  -DserviceAreas=orders,inventory \
+  -DpresentationTypes=rest,graphql
+----
