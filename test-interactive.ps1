@@ -66,18 +66,16 @@ try {
     # 3.4.x prompts. Required properties WITHOUT a non-empty default are prompted
     # first, in archetype-metadata.xml order, THEN groupId / artifactId / package.
     # Properties with a non-empty default are NOT prompted, so they get no answer
-    # line here: version (default 1.0.0-SNAPSHOT) and presentationTypes (rest).
+    # line here: version (1.0.0-SNAPSHOT), serviceAreas (",") and presentationTypes
+    # (rest). The "," default makes serviceAreas resolve to a single "service" module.
     #
     #   integrations  -> database:main
-    #   serviceAreas  -> , (comma placeholder; treated as an empty list by the
-    #                       Groovy script, i.e. a single "service" module)
     #   groupId       -> com.example
     #   artifactId    -> my-service
     #   package       -> (Enter: accept default derived from groupId)
     #   confirm       -> Y
     $answers = @(
         "database:main",
-        ",",
         "com.example",
         "my-service",
         "",

@@ -43,8 +43,12 @@
     </requiredProperty>
 
     <requiredProperty key="serviceAreas">
-      <defaultValue></defaultValue>
-      <!-- blank → single "service" module; or comma-separated names, e.g. orders,inventory -->
+      <!-- The archetype plugin treats an empty value as "not configured" and aborts
+           ("Property serviceAreas is missing") before archetype-post-generate.groovy runs,
+           so the default is the "," sentinel rather than blank. The script maps ","
+           (which String.split yields as an empty list) to a single module named "service".
+           Override with comma-separated names for multiple areas, e.g. orders,inventory. -->
+      <defaultValue>,</defaultValue>
     </requiredProperty>
 
     <requiredProperty key="presentationTypes">
