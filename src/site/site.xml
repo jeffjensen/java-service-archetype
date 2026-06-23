@@ -9,6 +9,13 @@
     <version>2.1.0</version>
   </skin>
 
+  <bannerLeft name="Java Service Archetype" href="https://jeffjensen.github.io/java-service-archetype" target="_blank">
+  </bannerLeft>
+
+  <bannerRight href="https://github.com/jeffjensen/java-service-archetype" target="_blank">
+    <image src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="48px" height="48px"/>
+  </bannerRight>
+
   <body>
     <links>
       <item name="main" href="https://github.com/jeffjensen/java-service-archetype/actions/workflows/build-any-branch.yml?query=branch%3Amain">
@@ -17,15 +24,21 @@
       <item name="GitHub" href="https://github.com/jeffjensen/java-service-archetype" />
     </links>
 
+    <breadcrumbs>
+      <item name="Docs Home" href="index.html"/>
+    </breadcrumbs>
+
     <menu name="Using">
       <item name="Overview" href="index.html" />
       <item name="Usage" href="usage.html" />
     </menu>
+
     <menu name="Developing">
       <item name="Building" href="building.html" />
       <item name="Releasing" href="releasing.html" />
       <item name="Requirements" href="requirements.html" />
     </menu>
+
     <menu ref="reports" />
   </body>
 </site>
