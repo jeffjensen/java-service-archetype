@@ -10,8 +10,10 @@
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.jeffjensen \
   -DarchetypeArtifactId=java-service-archetype \
-  -DarchetypeVersion=1.0.0
+  -DarchetypeVersion=VERSION
 ----
+
+Replace `VERSION` with the archetype release you want to use.
 
 Maven first prompts for the standard Maven coordinates:
 
@@ -133,7 +135,7 @@ Uses the same values as the full multi-service example above.
 mvn archetype:generate -B \
   -DarchetypeGroupId=io.github.jeffjensen \
   -DarchetypeArtifactId=java-service-archetype \
-  -DarchetypeVersion=1.0.0 \
+  -DarchetypeVersion=VERSION \
   -DgroupId=com.example \
   -DartifactId=my-service \
   -Dversion=1.0.0-SNAPSHOT \

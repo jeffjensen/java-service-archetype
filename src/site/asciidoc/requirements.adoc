@@ -59,10 +59,15 @@ Do not create a `pom.xml` at the project root.
   `project.build.sourceEncoding`.
 * `<pluginManagement>` — declare pinned versions for `maven-compiler-plugin`,
   `maven-failsafe-plugin`, `maven-jar-plugin` (configured with `skipIfEmpty=true`),
-  `maven-surefire-plugin`, and `modernizer-maven-plugin` (bound to the `verify`
-  phase with `javaVersion` set to `${java.version}`).
+  `maven-surefire-plugin`, `modernizer-maven-plugin` (bound to the `verify`
+  phase with `javaVersion` set to `${java.version}`), and `versions-maven-plugin`
+  (rule set ignores alpha/beta/milestone/RC versions).
 * `<plugins>` — activate `modernizer-maven-plugin` so every module is checked for
   outdated API usage during `verify`.
+* Generate two convenience scripts in `parent/` — `mvn-update-properties-versions.sh`
+  (Linux/macOS, LF line endings, executable bit set) and `mvn-update-properties-versions.ps1`
+  (Windows, CRLF line endings) — that wrap `mvn versions:update-properties` to bump every
+  dependency and plugin version property to its latest stable release.
 
 === Child module POMs
 

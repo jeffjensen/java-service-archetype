@@ -14,8 +14,10 @@ the archetype builds the full module tree and wires up all POMs.
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.jeffjensen \
   -DarchetypeArtifactId=java-service-archetype \
-  -DarchetypeVersion=1.0.0
+  -DarchetypeVersion=VERSION
 ----
+
+Replace `VERSION` with the archetype release you want to use.
 
 Maven prompts for standard coordinates (`groupId`, `artifactId`, `version`, `package`)
 followed by three archetype-specific properties.

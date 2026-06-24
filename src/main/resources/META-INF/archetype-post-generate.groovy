@@ -1,4 +1,6 @@
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -216,6 +218,7 @@ ${modulesXml}
     <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
     <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
     <modernizer-maven-plugin.version>3.4.0</modernizer-maven-plugin.version>
+    <versions-maven-plugin.version>2.18.0</versions-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -289,6 +292,35 @@ ${dmXml}
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>versions-maven-plugin</artifactId>
+          <version>\${versions-maven-plugin.version}</version>
+          <configuration>
+            <ruleSet>
+              <ignoreVersions>
+                <ignoreVersion>
+                  <type>regex</type>
+                  <version>(?i).*-(alpha|beta|m|rc)([-.]?\\d+)?</version>
+                </ignoreVersion>
+              </ignoreVersions>
+              <rules>
+                <rule>
+                  <groupId>com.graphql-java</groupId>
+                  <artifactId>graphql-java-extended-scalars</artifactId>
+                  <ignoreVersions>
+                    <!-- ignore old versions starting with 2018, 2019, 2020, 2021, 2022, or 2023 that
+                    semantically are newer than current version scheme -->
+                    <ignoreVersion>
+                      <type>regex</type>
+                      <version>^20(1[8-9]|2[0-3]).*</version>
+                    </ignoreVersion>
+                  </ignoreVersions>
+                </rule>
+              </rules>
+            </ruleSet>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -305,6 +337,49 @@ writeFile(projectDir, 'parent/pom.xml', parentPom)
 
 // Remove the placeholder pom.xml that the archetype engine wrote at the project root
 new File(projectDir, 'pom.xml').delete()
+
+// ─── Version-update helper scripts ────────────────────────────────────────────
+// Convenience wrappers around `mvn versions:update-properties` so all property
+// versions can be bumped to their latest in one command. Written into parent/
+// (alongside parent/pom.xml, where the version properties live) for both Linux
+// (LF, +x) and Windows (CRLF). Built from explicit line lists so the line
+// endings are correct regardless of this script's own endings.
+
+writeFile(projectDir, 'parent/mvn-update-properties-versions.sh', [
+    '#!/bin/bash',
+    '# Updates property versions to the latest found',
+    'FILE=target/version-updates-applied.log',
+    'mkdir -p target',
+    'rm -f $FILE',
+    'echo "Writing output to file $FILE"',
+    'echo "Applying version updates specified as properties..."',
+    'echo "======================================== PROPERTIES" >> $FILE',
+    'mvn versions:update-properties >> $FILE',
+    '',
+].join('\n'))
+
+writeFile(projectDir, 'parent/mvn-update-properties-versions.ps1', [
+    '# Updates property versions to the latest found',
+    '$FILE = "target/version-updates-applied.log"',
+    'New-Item -ItemType Directory -Force -Path "target" | Out-Null',
+    'if (Test-Path $FILE) { Remove-Item -Force $FILE }',
+    'Write-Host "Writing output to file $FILE"',
+    'Write-Host "Applying version updates specified as properties..."',
+    '"======================================== PROPERTIES" | Out-File -FilePath $FILE -Append -Encoding utf8',
+    '& mvn versions:update-properties | Out-File -FilePath $FILE -Append -Encoding utf8',
+    '',
+].join('\r\n'))
+
+// Set the exec bit on the Linux script. POSIX filesystems only; on Windows
+// (non-POSIX) this throws UnsupportedOperationException and we fall back to the
+// best-effort Java executable flag (a no-op on Windows, but harmless).
+def shFile = new File(projectDir, 'parent/mvn-update-properties-versions.sh')
+try {
+    Files.setPosixFilePermissions(shFile.toPath(),
+        PosixFilePermissions.fromString('rwxr-xr-x'))
+} catch (UnsupportedOperationException ignored) {
+    shFile.setExecutable(true, false)
+}
 
 // ─── common-domain ────────────────────────────────────────────────────────────
 

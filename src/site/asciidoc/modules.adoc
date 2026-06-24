@@ -92,8 +92,9 @@ It contains:
 * `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`
 * Common properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding
 * `<pluginManagement>` — pinned versions for `maven-compiler-plugin`, `maven-failsafe-plugin`,
-  `maven-jar-plugin` (with `skipIfEmpty=true`), `maven-surefire-plugin`, and
-  `modernizer-maven-plugin` (bound to `verify`, `javaVersion` = `${java.version}`)
+  `maven-jar-plugin` (with `skipIfEmpty=true`), `maven-surefire-plugin`,
+  `modernizer-maven-plugin` (bound to `verify`, `javaVersion` = `${java.version}`), and
+  `versions-maven-plugin` (rule set ignores alpha/beta/milestone/RC versions)
 * `<plugins>` — activates `modernizer-maven-plugin` so every module is checked for outdated API usage during `verify`
 
 To build a generated project:
@@ -105,6 +106,33 @@ mvn verify
 ----
 
 Use `mvn install` instead if other local projects need to consume the generated modules from your local Maven repository.
+
+=== Updating dependency and plugin versions
+
+`parent/` also contains two convenience scripts that wrap `mvn versions:update-properties`,
+bumping every dependency and plugin version property in `parent/pom.xml` to its latest stable
+release in a single command:
+
+[cols="1,2"]
+|===
+|Script |Platform
+
+|`mvn-update-properties-versions.sh`  |Linux / macOS
+|`mvn-update-properties-versions.ps1` |Windows (PowerShell)
+|===
+
+Run the applicable script from `parent/` immediately after generating the project to pick up
+the newest versions before your first build:
+
+[source,bash]
+----
+cd my-service/parent
+./mvn-update-properties-versions.sh
+----
+
+The full plugin output is written to `parent/target/version-updates-applied.log`.
+Pre-release versions (alpha, beta, milestone, RC) are skipped by the `versions-maven-plugin`
+rule set, so only stable releases are applied.
 
 == Package Reference
 

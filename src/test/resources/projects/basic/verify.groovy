@@ -76,6 +76,13 @@ assert pmBlock.contains('<version>${modernizer-maven-plugin.version}</version>')
 assert pmBlock.contains('<javaVersion>${java.version}</javaVersion>')        : 'modernizer must configure javaVersion'
 assert pmBlock.contains('<goal>modernizer</goal>')                          : 'modernizer pluginManagement must bind the modernizer goal'
 
+// versions-maven-plugin: pinned and managed in pluginManagement with the update ruleSet
+assert parentPom.contains('<versions-maven-plugin.version>2.18.0</versions-maven-plugin.version>') \
+    : 'parent must pin versions-maven-plugin version'
+assert pmBlock.contains('<artifactId>versions-maven-plugin</artifactId>')         : 'versions-maven-plugin must be declared in pluginManagement'
+assert pmBlock.contains('<version>${versions-maven-plugin.version}</version>')     : 'versions-maven-plugin pluginManagement must reference the version property'
+assert pmBlock.contains('<artifactId>graphql-java-extended-scalars</artifactId>') : 'versions-maven-plugin must configure the graphql-java-extended-scalars rule'
+
 // the active <plugins> section is what remains of <build> after removing <pluginManagement>
 def buildBlock    = (parentPom =~ /(?s)<build>.*<\/build>/)[0]
 def activePlugins = buildBlock.replaceAll(/(?s)<pluginManagement>.*<\/pluginManagement>/, '')
@@ -214,6 +221,23 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
     assert text("${m}/pom.xml").contains('<artifactId>maven-failsafe-plugin</artifactId>') \
         : "${m} must configure maven-failsafe-plugin"
 }
+
+// ── Version-update helper scripts in parent/ ──────────────────────────────────
+// They live alongside parent/pom.xml, where the version properties are defined.
+// The .sh exec bit is POSIX-only and cannot be set when generating on Windows,
+// so it is intentionally not asserted here.
+
+check('parent/mvn-update-properties-versions.sh')
+check('parent/mvn-update-properties-versions.ps1')
+
+def shScript = text('parent/mvn-update-properties-versions.sh')
+assert shScript.startsWith('#!/bin/bash')                     : 'bash script must start with the bash shebang'
+assert shScript.contains('mvn versions:update-properties')    : 'bash script must run mvn versions:update-properties'
+assert !shScript.contains('\r')                               : 'bash script must use LF line endings (no CR)'
+
+def psScript = text('parent/mvn-update-properties-versions.ps1')
+assert psScript.contains('mvn versions:update-properties')      : 'PowerShell script must run mvn versions:update-properties'
+assert psScript.contains('\r\n')                               : 'PowerShell script must use CRLF line endings'
 
 _buildLog.append("\n=== PASSED ===\n")
 true
