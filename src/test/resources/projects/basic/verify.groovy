@@ -63,6 +63,25 @@ assert parentPom.contains('<artifactId>maven-jar-plugin</artifactId>')      : 'p
 assert parentPom.contains('<artifactId>maven-surefire-plugin</artifactId>') : 'parent must declare maven-surefire-plugin in pluginManagement'
 assert parentPom.contains('<skipIfEmpty>true</skipIfEmpty>')                 : 'maven-jar-plugin must configure skipIfEmpty=true'
 
+// modernizer-maven-plugin: pinned, managed in pluginManagement, activated in build/plugins
+assert parentPom.contains('<modernizer-maven-plugin.version>3.4.0</modernizer-maven-plugin.version>') \
+    : 'parent must pin modernizer-maven-plugin version'
+assert parentPom.count('<artifactId>modernizer-maven-plugin</artifactId>') == 2 \
+    : 'modernizer-maven-plugin must appear twice: once in pluginManagement, once in active plugins'
+
+def pmBlock = (parentPom =~ /(?s)<pluginManagement>.*<\/pluginManagement>/)[0]
+assert pmBlock.contains('<groupId>org.gaul</groupId>')                       : 'modernizer must use groupId org.gaul'
+assert pmBlock.contains('<artifactId>modernizer-maven-plugin</artifactId>') : 'modernizer must be declared in pluginManagement'
+assert pmBlock.contains('<version>${modernizer-maven-plugin.version}</version>') : 'modernizer pluginManagement must reference the version property'
+assert pmBlock.contains('<javaVersion>${java.version}</javaVersion>')        : 'modernizer must configure javaVersion'
+assert pmBlock.contains('<goal>modernizer</goal>')                          : 'modernizer pluginManagement must bind the modernizer goal'
+
+// the active <plugins> section is what remains of <build> after removing <pluginManagement>
+def buildBlock    = (parentPom =~ /(?s)<build>.*<\/build>/)[0]
+def activePlugins = buildBlock.replaceAll(/(?s)<pluginManagement>.*<\/pluginManagement>/, '')
+assert activePlugins.contains('<artifactId>modernizer-maven-plugin</artifactId>') \
+    : 'modernizer-maven-plugin must be activated in the parent <build><plugins> section'
+
 // ── 5. Modules are sorted alphabetically in <modules> ────────────────────────
 
 def moduleOrder = modules.sort().collect { "<module>../${it}</module>" }

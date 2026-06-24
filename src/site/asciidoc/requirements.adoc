@@ -59,7 +59,10 @@ Do not create a `pom.xml` at the project root.
   `project.build.sourceEncoding`.
 * `<pluginManagement>` — declare pinned versions for `maven-compiler-plugin`,
   `maven-failsafe-plugin`, `maven-jar-plugin` (configured with `skipIfEmpty=true`),
-  and `maven-surefire-plugin`.
+  `maven-surefire-plugin`, and `modernizer-maven-plugin` (bound to the `verify`
+  phase with `javaVersion` set to `${java.version}`).
+* `<plugins>` — activate `modernizer-maven-plugin` so every module is checked for
+  outdated API usage during `verify`.
 
 === Child module POMs
 

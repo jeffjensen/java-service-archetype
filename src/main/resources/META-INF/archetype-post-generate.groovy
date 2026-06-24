@@ -215,6 +215,7 @@ ${modulesXml}
     <maven-failsafe-plugin.version>3.5.5</maven-failsafe-plugin.version>
     <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
     <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
+    <modernizer-maven-plugin.version>3.4.0</modernizer-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -271,8 +272,31 @@ ${dmXml}
             <argLine>-XX:MaxRAMPercentage=5.0</argLine>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>org.gaul</groupId>
+          <artifactId>modernizer-maven-plugin</artifactId>
+          <version>\${modernizer-maven-plugin.version}</version>
+          <configuration>
+            <javaVersion>\${java.version}</javaVersion>
+          </configuration>
+          <executions>
+            <execution>
+              <id>modernizer</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>modernizer</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.gaul</groupId>
+        <artifactId>modernizer-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
   </build>
 </project>
 """

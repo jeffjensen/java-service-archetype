@@ -92,7 +92,9 @@ It contains:
 * `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`
 * Common properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding
 * `<pluginManagement>` — pinned versions for `maven-compiler-plugin`, `maven-failsafe-plugin`,
-  `maven-jar-plugin` (with `skipIfEmpty=true`), and `maven-surefire-plugin`
+  `maven-jar-plugin` (with `skipIfEmpty=true`), `maven-surefire-plugin`, and
+  `modernizer-maven-plugin` (bound to `verify`, `javaVersion` = `${java.version}`)
+* `<plugins>` — activates `modernizer-maven-plugin` so every module is checked for outdated API usage during `verify`
 
 To build a generated project:
 
