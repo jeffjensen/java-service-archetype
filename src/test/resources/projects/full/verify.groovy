@@ -239,5 +239,13 @@ assert text("domain-graphql/src/main/java/${p}/domain/graphql/package-info.java"
 assert text('common-domain/pom.xml') =~ /<description>[^<]*\.<\/description>/ \
     : 'pom descriptions must be sentences ending with a period'
 
+// ── dependency lists are split into TEST and PROD sections (TEST first) ──────
+
+def depPom = text('domain-db-users/pom.xml')
+assert depPom.contains('<!-- TEST -->') : 'dependency list must carry a TEST section header'
+assert depPom.contains('<!-- PROD -->') : 'dependency list must carry a PROD section header'
+assert depPom.indexOf('<!-- TEST -->') < depPom.indexOf('<!-- PROD -->')                          : 'TEST section must come before PROD'
+assert depPom.indexOf('<!-- PROD -->') < depPom.indexOf('<artifactId>common-domain</artifactId>') : 'compile-scope deps must sit under PROD'
+
 _buildLog.append("\n=== PASSED ===\n")
 true

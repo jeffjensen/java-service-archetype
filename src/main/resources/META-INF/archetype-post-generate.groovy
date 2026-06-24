@@ -77,21 +77,32 @@ def failsafeSection = """\
 
 /** Builds a child-module pom.xml string (2-space indent).
  *  A dependency entry is either a String (an internal module artifactId, inheriting this project's
- *  groupId and BOM-managed version) or a Map [groupId:…, artifactId:…] for an external dependency. */
+ *  groupId and BOM-managed version) or a Map [groupId:…, artifactId:…, scope:…] for an external
+ *  dependency. Dependencies are grouped into a "<!-- TEST -->" section (scope 'test', emitted first)
+ *  and a "<!-- PROD -->" section (everything else); both headers are always present. */
 def modulePom = { String gId, String parentAId, String ver,
                    String aId, String desc, List deps = [], String buildSection = '' ->
     def depsSection = ''
     if (deps) {
-        def lines = deps.collect { dep ->
+        def renderDep = { dep ->
             def dGroup = (dep instanceof Map) ? dep.groupId : gId
             def dArtifact = (dep instanceof Map) ? dep.artifactId : dep
+            def dScope = (dep instanceof Map && dep.scope) ? "\n      <scope>${dep.scope}</scope>" : ''
             """\
     <dependency>
       <groupId>${dGroup}</groupId>
-      <artifactId>${dArtifact}</artifactId>
+      <artifactId>${dArtifact}</artifactId>${dScope}
     </dependency>"""
-        }.join('\n')
-        depsSection = "\n  <dependencies>\n${lines}\n  </dependencies>\n"
+        }
+        def isTest = { it instanceof Map && it.scope == 'test' }
+        def testLines = deps.findAll(isTest).collect(renderDep).join('\n')
+        def prodLines = deps.findAll { !isTest(it) }.collect(renderDep).join('\n')
+        def section = ['    <!-- TEST -->']
+        if (testLines) section << testLines
+        section << ''
+        section << '    <!-- PROD -->'
+        if (prodLines) section << prodLines
+        depsSection = "\n  <dependencies>\n${section.join('\n')}\n  </dependencies>\n"
     }
 
     """\

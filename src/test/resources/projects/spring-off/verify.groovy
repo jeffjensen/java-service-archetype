@@ -93,5 +93,13 @@ modules.each { m ->
 assert text('acceptance-tests/pom.xml').contains('<artifactId>maven-failsafe-plugin</artifactId>')     : 'acceptance-tests must configure maven-failsafe-plugin'
 assert text('integration-db-users/pom.xml').contains('<artifactId>maven-failsafe-plugin</artifactId>') : 'integration module must configure maven-failsafe-plugin'
 
+// ── dependency lists are split into TEST and PROD sections (TEST first) ──────
+
+def svcPom = text('service/pom.xml')
+assert svcPom.contains('<!-- TEST -->') : 'dependency list must carry a TEST section header'
+assert svcPom.contains('<!-- PROD -->') : 'dependency list must carry a PROD section header'
+assert svcPom.indexOf('<!-- TEST -->') < svcPom.indexOf('<!-- PROD -->')                           : 'TEST section must come before PROD'
+assert svcPom.indexOf('<!-- PROD -->') < svcPom.indexOf('<artifactId>domain-service</artifactId>') : 'compile-scope deps must sit under PROD'
+
 _buildLog.append("\n=== PASSED ===\n")
 true
