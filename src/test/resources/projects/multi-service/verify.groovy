@@ -28,6 +28,8 @@ assert !new File(basedir, 'pom.xml').exists() : "Root pom.xml must not exist"
 
 def modules = [
     'acceptance-tests', 'app', 'common-domain', 'common-testing',
+    'domain-service-inventory',
+    'domain-service-orders',
     'domain-db-main', 'domain-rest',
     'integration-db-main',
     'presentation-rest',
@@ -102,8 +104,8 @@ assert text("service-inventory/src/main/java/${p}/service/inventory/package-info
 assert text("service-orders/src/main/java/${p}/service/orders/package-info.java").contains("package ${pkg}.service.orders;")    : 'service-orders package-info.java has wrong package declaration'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                     : 'app package-info.java has wrong package declaration'
 assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")          : 'acceptance-tests package-info.java has wrong package declaration'
-assert !new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                        : 'common-testing must not have test Java package-info.java'
-assert !new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                          : 'acceptance-tests must not have main Java package-info.java'
+assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                        : 'common-testing must have test Java package-info.java'
+assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                          : 'acceptance-tests must have main Java package-info.java'
 
 // ── 7. Service and domain module common-domain wiring ────────────────────────
 
@@ -148,6 +150,15 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
     assert text("${m}/pom.xml").contains('<artifactId>maven-failsafe-plugin</artifactId>') \
         : "${m} must configure maven-failsafe-plugin"
 }
+
+// ── #8 service-area domain modules + wiring ──────────────────────────────────
+
+['domain-service-orders', 'domain-service-inventory'].each { m ->
+    check("${m}/pom.xml")
+    assert text("${m}/pom.xml").contains('<artifactId>common-domain</artifactId>') : "${m} missing common-domain dep"
+}
+assert text('service-orders/pom.xml').contains('<artifactId>domain-service-orders</artifactId>')       : 'service-orders must depend on domain-service-orders'
+assert text('service-inventory/pom.xml').contains('<artifactId>domain-service-inventory</artifactId>') : 'service-inventory must depend on domain-service-inventory'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

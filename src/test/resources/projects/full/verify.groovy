@@ -29,6 +29,8 @@ assert !new File(basedir, 'pom.xml').exists() : "Root pom.xml must not exist"
 
 def modules = [
     'acceptance-tests', 'app', 'common-domain', 'common-testing',
+    'domain-service-notifications',
+    'domain-service-orders',
     'domain-db-users',
     'domain-graphql',
     'domain-graphql-catalog',
@@ -121,8 +123,8 @@ assert text("service-orders/src/main/java/${p}/service/orders/package-info.java"
 assert text("service-notifications/src/main/java/${p}/service/notifications/package-info.java").contains("package ${pkg}.service.notifications;") : 'service-notifications package-info.java has wrong package declaration'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                     : 'app package-info.java has wrong package declaration'
 assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")          : 'acceptance-tests package-info.java has wrong package declaration'
-assert !new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                        : 'common-testing must not have test Java package-info.java'
-assert !new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                          : 'acceptance-tests must not have main Java package-info.java'
+assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                        : 'common-testing must have test Java package-info.java'
+assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                          : 'acceptance-tests must have main Java package-info.java'
 
 // ── 8. common-domain wiring for domain/service modules ───────────────────────
 
@@ -183,6 +185,34 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
     assert text("${m}/pom.xml").contains('<artifactId>maven-failsafe-plugin</artifactId>') \
         : "${m} must configure maven-failsafe-plugin"
 }
+
+// ── Service-area domain modules (domain-service-*) and wiring (#8) ───────────
+
+['domain-service-orders', 'domain-service-notifications'].each { m ->
+    def area = m.replaceFirst('domain-service-', '')
+    check("${m}/pom.xml")
+    assert text("${m}/pom.xml").contains('<artifactId>common-domain</artifactId>') : "${m} missing common-domain dep"
+    check("${m}/src/main/java/${p}/domain/service/${area}/package-info.java")
+    check("${m}/src/test/java/${p}/domain/service/${area}/package-info.java")
+    assert atPom.contains("<artifactId>${m}</artifactId>") : "acceptance-tests must depend on ${m}"
+}
+assert text('service-orders/pom.xml').contains('<artifactId>domain-service-orders</artifactId>')               : 'service-orders must depend on domain-service-orders'
+assert text('service-notifications/pom.xml').contains('<artifactId>domain-service-notifications</artifactId>') : 'service-notifications must depend on domain-service-notifications'
+
+// ── package-info Javadoc conventions (#2 test wording, #6 infrastructure, #7 GraphQL) ──
+
+assert text("common-domain/src/test/java/${p}/common/domain/package-info.java").contains('Tests for') \
+    : 'test package-info Javadoc must begin "Tests for ..."'
+assert text("common-testing/src/main/java/${p}/common/testing/package-info.java").contains('infrastructure') \
+    : 'common-testing package-info must say infrastructure, not utilities'
+assert !text('common-testing/pom.xml').contains('utilities') : 'common-testing pom must not say utilities'
+assert text("domain-graphql/src/main/java/${p}/domain/graphql/package-info.java").contains('GraphQL presentation tier') \
+    : 'graphql must be spelled GraphQL in Javadoc prose'
+
+// ── pom descriptions are complete sentences ending with a period (#5) ────────
+
+assert text('common-domain/pom.xml') =~ /<description>[^<]*\.<\/description>/ \
+    : 'pom descriptions must be sentences ending with a period'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

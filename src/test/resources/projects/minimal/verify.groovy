@@ -28,7 +28,8 @@ assert !new File(basedir, 'pom.xml').exists() : "Root pom.xml must not exist"
 // ── 2. Exactly the fixed modules plus service — no integration/presentation ──
 
 def modules = [
-    'acceptance-tests', 'app', 'common-domain', 'common-testing', 'service',
+    'acceptance-tests', 'app', 'common-domain', 'common-testing',
+    'domain-service', 'service',
 ]
 modules.each { m -> check("${m}/pom.xml") }
 
@@ -87,8 +88,8 @@ assert text("common-testing/src/main/java/${p}/common/testing/package-info.java"
 assert text("service/src/main/java/${p}/service/package-info.java").contains("package ${pkg}.service;")                      : 'service package-info.java has wrong package declaration'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                  : 'app package-info.java has wrong package declaration'
 assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")       : 'acceptance-tests package-info.java has wrong package declaration'
-assert !new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must not have test Java package-info.java'
-assert !new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must not have main Java package-info.java'
+assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must have test Java package-info.java'
+assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must have main Java package-info.java'
 
 // ── 6. Dependency wiring ─────────────────────────────────────────────────────
 
@@ -132,6 +133,16 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
     assert text("${m}/pom.xml").contains('<artifactId>maven-failsafe-plugin</artifactId>') \
         : "${m} must configure maven-failsafe-plugin"
 }
+
+// ── #8 service-area domain module + test-package Javadoc (#2) ────────────────
+
+check('domain-service/pom.xml')
+assert text('domain-service/pom.xml').contains('<artifactId>common-domain</artifactId>') : 'domain-service missing common-domain dep'
+assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>')       : 'service must depend on domain-service'
+check("domain-service/src/main/java/${p}/domain/service/package-info.java")
+check("domain-service/src/test/java/${p}/domain/service/package-info.java")
+assert text("common-testing/src/test/java/${p}/common/testing/package-info.java").contains('Tests for') \
+    : 'test package-info Javadoc must begin "Tests for ..."'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

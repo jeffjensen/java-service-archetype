@@ -28,6 +28,7 @@ assert !new File(basedir, 'pom.xml').exists() : "Root pom.xml must not exist; pa
 
 def modules = [
     'acceptance-tests', 'app', 'common-domain', 'common-testing',
+    'domain-service',
     'domain-db-main', 'domain-rest', 'integration-db-main',
     'presentation-rest', 'service'
 ]
@@ -161,11 +162,11 @@ assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains
     assert content.startsWith('/**') : "${path} must start with a Javadoc comment"
 }
 
-// common-testing has no test Java packages; acceptance-tests has no main Java packages
-assert !new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists() \
-    : 'common-testing must not have test Java package-info.java'
-assert !new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists() \
-    : 'acceptance-tests must not have main Java package-info.java'
+// common-testing and acceptance-tests now carry package-info in both source roots
+assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists() \
+    : 'common-testing must have test Java package-info.java'
+assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists() \
+    : 'acceptance-tests must have main Java package-info.java'
 
 // ── 8. Module dependency wiring ───────────────────────────────────────────────
 
@@ -238,6 +239,12 @@ assert !shScript.contains('\r')                               : 'bash script mus
 def psScript = text('parent/mvn-update-properties-versions.ps1')
 assert psScript.contains('mvn versions:update-properties')      : 'PowerShell script must run mvn versions:update-properties'
 assert psScript.contains('\r\n')                               : 'PowerShell script must use CRLF line endings'
+
+// ── #8 service-area domain module ────────────────────────────────────────────
+
+check('domain-service/pom.xml')
+assert text('domain-service/pom.xml').contains('<artifactId>common-domain</artifactId>') : 'domain-service missing common-domain dep'
+assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>')       : 'service must depend on domain-service'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

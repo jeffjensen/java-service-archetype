@@ -9,6 +9,17 @@ def typeAbbrev = { String t ->
     t.trim().toLowerCase() == 'database' ? 'db' : t.trim().toLowerCase()
 }
 
+/** Returns the human-readable display name used in prose (Javadoc, pom descriptions) for a type. */
+def typeDisplay = { String t ->
+    def s = t.trim().toLowerCase()
+    s == 'graphql' ? 'GraphQL' : s
+}
+
+/** Lower-cases the first character of a string, used to splice a description into a sentence. */
+def lcFirst = { String s ->
+    (s == null || s.isEmpty()) ? s : Character.toLowerCase(s.charAt(0)).toString() + s.substring(1)
+}
+
 def ensureDir = { File base, String rel ->
     // File(parent, child) normalises separators on all platforms
     new File(base, rel).mkdirs()
@@ -37,13 +48,15 @@ package ${fullPkg};
     }
     ensureDir(base, "${module}/src/main/resources")
     ensureDir(base, "${module}/src/test/java")
+    // Test-package Javadoc reuses the main wording, prefixed to mark it as the tests for that code.
+    def testDesc = 'Tests for ' + lcFirst(description.replaceAll(/\.\s*$/, '')) + '.'
     testSubs.each { sub ->
         def fullPkg = (pkgPath + '/' + sub).replace('/', '.')
         def dir = "${module}/src/test/java/${pkgPath}/${sub}"
         ensureDir(base, dir)
         writeFile(base, "${dir}/package-info.java", """\
 /**
- * ${description}
+ * ${testDesc}
  */
 package ${fullPkg};
 """)
@@ -149,21 +162,22 @@ def presentations = presentationTypesInput
 
 def intDomainMods  = integrations.collect  { "domain-${it.abbrev}-${it.name}" }
 def intImplMods    = integrations.collect  { "integration-${it.abbrev}-${it.name}" }
+def svcDomainMods  = serviceModules.collect { "domain-${it}" }
 def presDomainMods = presentations.collect { "domain-${it}" }
 def presImplMods   = presentations.collect { "presentation-${it}" }
 
 def allModules = (
     ['acceptance-tests', 'app', 'common-domain', 'common-testing'] +
     intDomainMods + intImplMods +
-    serviceModules +
+    serviceModules + svcDomainMods +
     presDomainMods + presImplMods
 ).sort()
 
 // app depends on all non-test, non-self modules
 def appDeps = allModules.findAll { it != 'acceptance-tests' && it != 'common-testing' && it != 'app' }
 
-// acceptance-tests depends on app + all domain modules
-def atDeps = (['app', 'common-domain'] + intDomainMods + presDomainMods).sort().unique()
+// acceptance-tests depends on app + all domain modules (including each service area's domain module)
+def atDeps = (['app', 'common-domain'] + intDomainMods + svcDomainMods + presDomainMods).sort().unique()
 
 // ─── Resolve Project Root ─────────────────────────────────────────────────────
 
@@ -386,7 +400,7 @@ try {
 writeFile(projectDir, 'common-domain/pom.xml',
     modulePom(groupId, artifactId, version,
         'common-domain',
-        'Domain classes common to all modules'))
+        'Domain classes common to all modules.'))
 srcTree(projectDir, 'common-domain', pkgPath,
     ['common/domain'], ['common/domain'],
     'Domain classes common to all modules.')
@@ -396,38 +410,39 @@ srcTree(projectDir, 'common-domain', pkgPath,
 writeFile(projectDir, 'common-testing/pom.xml',
     modulePom(groupId, artifactId, version,
         'common-testing',
-        'Testing utilities common to all test modules',
+        'Testing infrastructure common to all test modules.',
         ['common-domain']))
 srcTree(projectDir, 'common-testing', pkgPath,
-    ['common/testing'], [],
-    'Test utilities common to all modules.')
+    ['common/testing'], ['common/testing'],
+    'Test infrastructure common to all modules.')
 
 // ─── Integration: domain-{type}-{name} and integration-{type}-{name} ──────────
 
 integrations.each { intg ->
     def domMod  = "domain-${intg.abbrev}-${intg.name}"
     def implMod = "integration-${intg.abbrev}-${intg.name}"
+    def disp    = typeDisplay(intg.rawType)
+    def domSub  = "domain/${intg.abbrev}/${intg.name}"
+    def implSub = "integration/${intg.abbrev}/${intg.name}"
 
     writeFile(projectDir, "${domMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             domMod,
-            "Domain classes for ${intg.rawType} data source: ${intg.name}",
+            "Domain classes for the ${intg.name} ${disp} data source.",
             ['common-domain']))
     srcTree(projectDir, domMod, pkgPath,
-        ["domain/${intg.abbrev}/${intg.name}"],
-        ["domain/${intg.abbrev}/${intg.name}"],
-        "Domain classes for the ${intg.name} ${intg.rawType} integration.")
+        [domSub], [domSub],
+        "Domain classes for the ${intg.name} ${disp} integration.")
 
     writeFile(projectDir, "${implMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             implMod,
-            "Integration classes (DAOs, repositories) for ${intg.rawType}: ${intg.name}",
+            "Integration classes (DAOs, repositories) for the ${intg.name} ${disp} data source.",
             ['common-domain', domMod],
             failsafeSection))
     srcTree(projectDir, implMod, pkgPath,
-        ["integration/${intg.abbrev}/${intg.name}"],
-        ["integration/${intg.abbrev}/${intg.name}"],
-        "Integration classes for the ${intg.name} ${intg.rawType} data source.")
+        [implSub], [implSub],
+        "Integration classes for the ${intg.name} ${disp} data source.")
 }
 
 // ─── Service modules ──────────────────────────────────────────────────────────
@@ -435,15 +450,27 @@ integrations.each { intg ->
 serviceModules.each { svcMod ->
     def label  = svcMod == 'service' ? 'primary' : svcMod.replaceFirst('service-', '')
     def svcPkg = svcMod == 'service' ? 'service'
-                                      : "service/${svcMod.replaceFirst('service-', '')}"
+                                      : "service/${label}"
+    def domMod = "domain-${svcMod}"
+    def domPkg = "domain/${svcPkg}"
 
-    writeFile(projectDir, "${svcMod}/pom.xml",
-        modulePom(groupId, artifactId, version,
-            svcMod,
-            "Business logic for the ${label} service area",
-            ['common-domain']))
     def svcDesc = svcMod == 'service' ? 'Business logic for the application.'
                                       : "Business logic for the ${label} service area."
+    def domDesc = svcMod == 'service' ? 'Domain classes for the application.'
+                                      : "Domain classes for the ${label} service area."
+
+    // Domain classes owned by this service area.
+    writeFile(projectDir, "${domMod}/pom.xml",
+        modulePom(groupId, artifactId, version,
+            domMod, domDesc,
+            ['common-domain']))
+    srcTree(projectDir, domMod, pkgPath, [domPkg], [domPkg], domDesc)
+
+    // Business logic, depending on its own service-area domain module.
+    writeFile(projectDir, "${svcMod}/pom.xml",
+        modulePom(groupId, artifactId, version,
+            svcMod, svcDesc,
+            ['common-domain', domMod]))
     srcTree(projectDir, svcMod, pkgPath, [svcPkg], [svcPkg], svcDesc)
 }
 
@@ -452,24 +479,25 @@ serviceModules.each { svcMod ->
 presentations.each { pType ->
     def domMod  = "domain-${pType}"
     def implMod = "presentation-${pType}"
+    def disp    = typeDisplay(pType)
 
     writeFile(projectDir, "${domMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             domMod,
-            "Domain classes for ${pType} presentation tier",
+            "Domain classes for the ${disp} presentation tier.",
             ['common-domain']))
     srcTree(projectDir, domMod, pkgPath,
         ["domain/${pType}"], ["domain/${pType}"],
-        "Domain classes for the ${pType} presentation tier.")
+        "Domain classes for the ${disp} presentation tier.")
 
     writeFile(projectDir, "${implMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             implMod,
-            "Request handling classes (controllers) for ${pType}",
+            "Request-handling classes (controllers) for the ${disp} presentation tier.",
             ['common-domain', domMod]))
     srcTree(projectDir, implMod, pkgPath,
         ["presentation/${pType}"], ["presentation/${pType}"],
-        "Request-handling classes for the ${pType} presentation tier.")
+        "Request-handling classes for the ${disp} presentation tier.")
 }
 
 // ─── app ─────────────────────────────────────────────────────────────────────
@@ -477,7 +505,7 @@ presentations.each { pType ->
 writeFile(projectDir, 'app/pom.xml',
     modulePom(groupId, artifactId, version,
         'app',
-        'Application assembly — produces the runnable artifact',
+        'Application assembly — produces the runnable artifact.',
         appDeps))
 srcTree(projectDir, 'app', pkgPath, ['app'], ['app'],
     'Application assembly and entry point.')
@@ -487,8 +515,8 @@ srcTree(projectDir, 'app', pkgPath, ['app'], ['app'],
 writeFile(projectDir, 'acceptance-tests/pom.xml',
     modulePom(groupId, artifactId, version,
         'acceptance-tests',
-        'Functional acceptance tests for the application',
+        'Functional acceptance tests for the application.',
         atDeps,
         failsafeSection))
-srcTree(projectDir, 'acceptance-tests', pkgPath, [], ['at'],
+srcTree(projectDir, 'acceptance-tests', pkgPath, ['at'], ['at'],
     'Functional acceptance tests for the application.')

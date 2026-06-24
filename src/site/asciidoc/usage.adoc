@@ -105,7 +105,8 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `service
 |===
 
 Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
-`domain-db-users`, `domain-rest`, `integration-db-users`, `presentation-rest`, `service`.
+`domain-db-users`, `domain-rest`, `domain-service`,
+`integration-db-users`, `presentation-rest`, `service`.
 
 === Full multi-service project
 
@@ -121,6 +122,7 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
 Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
 `domain-db-users`, `domain-graphql`, `domain-graphql-catalog`,
 `domain-rest`, `domain-rest-orders`,
+`domain-service-inventory`, `domain-service-orders`,
 `integration-db-users`, `integration-graphql-catalog`, `integration-rest-orders`,
 `presentation-graphql`, `presentation-rest`,
 `service-inventory`, `service-orders`.

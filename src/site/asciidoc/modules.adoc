@@ -5,7 +5,8 @@
 
 Every module contains a full `src/` scaffold
 (`src/main/java`, `src/main/resources`, `src/test/java`, `src/test/resources`)
-and a `package-info.java` in every applicable leaf package directory.
+with a `package-info.java` in each module's primary leaf package under both
+`src/main/java` and `src/test/java`.
 
 == Fixed Modules
 
@@ -17,7 +18,7 @@ Domain classes shared across all other modules. No dependencies on other generat
 _Package_: `{base.package}.common.domain`
 
 `common-testing`::
-Shared test utilities. Has no test-scope Java packages.
+Shared test infrastructure.
 +
 _Package_: `{base.package}.common.testing` +
 _Depends on_: `common-domain`
@@ -26,6 +27,12 @@ _Depends on_: `common-domain`
 Business logic for a service area (see the `serviceAreas` prompt).
 +
 _Package_: `{base.package}.service` or `{base.package}.service.{name}` +
+_Depends on_: `common-domain`, its own `domain-service` / `domain-service-{name}` module
+
+`domain-service` _or_ `domain-service-{name}`::
+Domain classes owned by a service area — one per `service` / `service-{name}` module.
++
+_Package_: `{base.package}.domain.service` or `{base.package}.domain.service.{name}` +
 _Depends on_: `common-domain`
 
 `app`::
@@ -33,14 +40,14 @@ Application assembly — produces the runnable artifact (e.g. Spring Boot über-
 +
 _Package_: `{base.package}.app` +
 _Depends on_: all non-test modules (`common-domain`, all domain and integration modules,
-all service modules, all presentation modules)
+all service modules and their `domain-service` modules, all presentation modules)
 
 `acceptance-tests`::
 Functional acceptance tests that exercise the application from the outside.
-Has no main-scope Java packages.
 +
 _Package_: `{base.package}.at` +
 _Depends on_: `app`, `common-domain`, all `domain-{type}-{name}` integration domain modules,
+all `domain-service` / `domain-service-{name}` service-area domain modules,
 all `domain-{type}` presentation domain modules +
 _Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
 
@@ -148,6 +155,8 @@ All type and name segments in package names are lowercased.
 |`integration-{type}-{name}` |`{base.package}.integration.{type}.{name}`
 |`service`                   |`{base.package}.service`
 |`service-{name}`            |`{base.package}.service.{name}`
+|`domain-service`            |`{base.package}.domain.service`
+|`domain-service-{name}`     |`{base.package}.domain.service.{name}`
 |`domain-{type}`             |`{base.package}.domain.{type}`
 |`presentation-{type}`       |`{base.package}.presentation.{type}`
 |`app`                       |`{base.package}.app`

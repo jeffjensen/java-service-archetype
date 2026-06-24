@@ -28,6 +28,7 @@ assert !new File(basedir, 'pom.xml').exists() : "Root pom.xml must not exist"
 
 def modules = [
     'acceptance-tests', 'app', 'common-domain', 'common-testing',
+    'domain-service',
     'domain-db-users', 'domain-rest',
     'integration-db-users',
     'presentation-rest',
@@ -94,8 +95,8 @@ assert text("common-testing/src/main/java/${p}/common/testing/package-info.java"
 assert text("service/src/main/java/${p}/service/package-info.java").contains("package ${pkg}.service;")                      : 'service package-info.java must use the package property'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                  : 'app package-info.java must use the package property'
 assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")       : 'acceptance-tests package-info.java must use the package property'
-assert !new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must not have test Java package-info.java'
-assert !new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must not have main Java package-info.java'
+assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must have test Java package-info.java'
+assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must have main Java package-info.java'
 
 // ── 6. groupId-based source paths must NOT exist ─────────────────────────────
 

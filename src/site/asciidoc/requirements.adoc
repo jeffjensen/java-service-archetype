@@ -80,10 +80,9 @@ Shared domain classes. No dependencies on other generated modules.
 
 === `common-testing`
 
-Shared test utilities.
+Shared test infrastructure.
 
 * Dependency: `common-domain`
-* No test-scope Java packages (the `src/test/java` directory is created but contains no source files).
 
 === Per integration: `domain-{type}-{name}` and `integration-{type}-{name}`
 
@@ -100,7 +99,12 @@ For each `type:name` integration entry, generate two modules
 === Per service area: `service` or `service-{name}`
 
 Business logic for a service area.
-Dependency: `common-domain`.
+Dependencies: `common-domain` and the area's own `domain-service` /
+`domain-service-{name}` module.
+
+For each service area, also generate a `domain-service` (single service) or
+`domain-service-{name}` module holding that area's domain classes
+(dependency: `common-domain`).
 
 === Per presentation tier: `domain-{type}` and `presentation-{type}`
 
@@ -121,19 +125,20 @@ and `app` itself.
 === `acceptance-tests`
 
 Functional tests that exercise the application end-to-end.
-No main-scope Java packages (the `src/main/java` directory is created but contains no source files).
 
 * Dependencies: `app`, `common-domain`, all `domain-{type}-{name}` modules,
+  all `domain-service` / `domain-service-{name}` modules,
   all `domain-{type}` (presentation) modules.
-* Do not depend on service modules or integration implementation modules.
+* Do not depend on service (business-logic) modules or integration implementation modules.
 * Configure `maven-failsafe-plugin` with the `integration-test` and `verify` goals.
 
 [[source-structure]]
 == Source Structure
 
 Each module's source root is the package derived from the base package prompt.
-Place a `package-info.java` in each leaf package directory with a Javadoc comment
-describing the package's purpose.
+Place a `package-info.java` in each module's primary leaf package under both
+`src/main/java` and `src/test/java`, with a Javadoc comment describing the package's
+purpose; the test-side comment is prefixed with "Tests for ...".
 The package for each module is:
 
 [cols="1,1"]
@@ -146,6 +151,8 @@ The package for each module is:
 |`integration-{type}-{name}` |`${base.package}.integration.{type}.{name}`
 |`service`                   |`${base.package}.service`
 |`service-{name}`            |`${base.package}.service.{name}`
+|`domain-service`            |`${base.package}.domain.service`
+|`domain-service-{name}`     |`${base.package}.domain.service.{name}`
 |`domain-{type}`             |`${base.package}.domain.{type}`
 |`presentation-{type}`       |`${base.package}.presentation.{type}`
 |`app`                       |`${base.package}.app`
