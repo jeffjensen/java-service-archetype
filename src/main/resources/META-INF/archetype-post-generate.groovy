@@ -55,14 +55,6 @@ def failsafeSection = """\
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
@@ -245,7 +237,19 @@ ${dmXml}
           <version>\${maven-failsafe-plugin.version}</version>
           <configuration>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <!-- alphabetical on even hours, reverse alphabetical on odd hours -->
+            <runOrder>hourly</runOrder>
+            <!-- limit heap for any forked test processes -->
+            <argLine>-XX:MaxRAMPercentage=5.0</argLine>
           </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -261,6 +265,10 @@ ${dmXml}
           <version>\${maven-surefire-plugin.version}</version>
           <configuration>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <!-- alphabetical on even hours, reverse alphabetical on odd hours -->
+            <runOrder>hourly</runOrder>
+            <!-- limit heap for any forked test processes -->
+            <argLine>-XX:MaxRAMPercentage=5.0</argLine>
           </configuration>
         </plugin>
       </plugins>
