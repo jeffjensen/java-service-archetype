@@ -43,6 +43,17 @@ Prompt for a comma-separated list of presentation-tier types
 * Leave blank (or provide only blank entries) to generate a project with no
   presentation modules.
 
+=== `includeSpring` (default: `true`)
+
+Whether to generate the Spring Boot wiring.
+
+* `true` (default): the `parent/` POM inherits `spring-boot-starter-parent`, every
+  app-composed module carries a `@Configuration` class and `spring-context`, and `app`
+  gets the `Application` / `AppServletInitializer` classes plus the
+  `spring-boot-starter-web` and `spring-boot-starter-data-jpa` dependencies.
+* `false`: omit all Spring artifacts — configs, classes, and POM items — producing a
+  plain multi-module Java project with the same module structure.
+
 == Module Structure
 
 Generate all modules as siblings of a `parent/` directory.
@@ -55,6 +66,9 @@ Do not create a `pom.xml` at the project root.
   sorted alphabetically.
 * List every sibling module in `<dependencyManagement>` pinned to
   `${project.version}`, sorted alphabetically by `artifactId`.
+* Inherit `spring-boot-starter-parent` (version 4.0.6) as the parent POM — via `<parent>`
+  with an empty `<relativePath/>`, not a BOM import — so Spring artifact versions and
+  sensible plugin defaults are managed centrally.
 * Properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding via
   `project.build.sourceEncoding`.
 * `<pluginManagement>` — declare pinned versions for `maven-compiler-plugin`,
@@ -120,7 +134,11 @@ For each presentation type, generate two modules
 
 Assembles the runnable artifact (e.g. Spring Boot uber jar).
 Depend on all generated modules except `acceptance-tests`, `common-testing`,
-and `app` itself.
+and `app` itself, plus `spring-boot-starter-web` and `spring-boot-starter-data-jpa`.
+Contains the Spring Boot `Application` (`@SpringBootApplication`,
+`@EnableTransactionManagement`) and `AppServletInitializer` (WAR deployment)
+classes in the `.config` sub-package. `Application` `@Import`s the `@Configuration`
+class that every app-composed module carries in its own `.config` sub-package.
 
 === `acceptance-tests`
 
@@ -138,7 +156,8 @@ Functional tests that exercise the application end-to-end.
 Each module's source root is the package derived from the base package prompt.
 Place a `package-info.java` in each module's primary leaf package under both
 `src/main/java` and `src/test/java`, with a Javadoc comment describing the package's
-purpose; the test-side comment is prefixed with "Tests for ...".
+purpose; the test-side comment is prefixed with "Tests for ...". Each app-composed
+module additionally carries a `@Configuration` class in a `.config` sub-package.
 The package for each module is:
 
 [cols="1,1"]

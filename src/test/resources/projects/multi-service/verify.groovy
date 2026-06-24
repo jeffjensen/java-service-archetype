@@ -159,6 +159,7 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
 }
 assert text('service-orders/pom.xml').contains('<artifactId>domain-service-orders</artifactId>')       : 'service-orders must depend on domain-service-orders'
 assert text('service-inventory/pom.xml').contains('<artifactId>domain-service-inventory</artifactId>') : 'service-inventory must depend on domain-service-inventory'
+assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

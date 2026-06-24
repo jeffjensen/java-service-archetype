@@ -240,11 +240,15 @@ def psScript = text('parent/mvn-update-properties-versions.ps1')
 assert psScript.contains('mvn versions:update-properties')      : 'PowerShell script must run mvn versions:update-properties'
 assert psScript.contains('\r\n')                               : 'PowerShell script must use CRLF line endings'
 
-// ── #8 service-area domain module ────────────────────────────────────────────
+// ── #8 service-area domain module + #4 Spring Boot wiring ────────────────────
 
 check('domain-service/pom.xml')
 assert text('domain-service/pom.xml').contains('<artifactId>common-domain</artifactId>') : 'domain-service missing common-domain dep'
 assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>')       : 'service must depend on domain-service'
+check("app/src/main/java/${p}/app/config/Application.java")
+check("app/src/main/java/${p}/app/config/AppServletInitializer.java")
+assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
+assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')     : 'app must depend on spring-boot-starter-web'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

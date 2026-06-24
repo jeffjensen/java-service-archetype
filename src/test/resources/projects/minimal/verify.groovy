@@ -134,13 +134,20 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
         : "${m} must configure maven-failsafe-plugin"
 }
 
-// ── #8 service-area domain module + test-package Javadoc (#2) ────────────────
+// ── #8 service-area domain module + #4 Spring Boot wiring ────────────────────
 
 check('domain-service/pom.xml')
 assert text('domain-service/pom.xml').contains('<artifactId>common-domain</artifactId>') : 'domain-service missing common-domain dep'
 assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>')       : 'service must depend on domain-service'
 check("domain-service/src/main/java/${p}/domain/service/package-info.java")
 check("domain-service/src/test/java/${p}/domain/service/package-info.java")
+check("app/src/main/java/${p}/app/config/Application.java")
+check("app/src/main/java/${p}/app/config/AppServletInitializer.java")
+def appMain = text("app/src/main/java/${p}/app/config/Application.java")
+assert appMain.contains('@SpringBootApplication')                                : 'Application must be @SpringBootApplication'
+assert appMain.contains("${pkg}.domain.service.config.DomainServiceConfiguration.class") : 'Application must @Import DomainServiceConfiguration'
+assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>')   : 'parent must inherit spring-boot-starter-parent'
+assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')       : 'app must depend on spring-boot-starter-web'
 assert text("common-testing/src/test/java/${p}/common/testing/package-info.java").contains('Tests for') \
     : 'test package-info Javadoc must begin "Tests for ..."'
 

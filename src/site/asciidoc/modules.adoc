@@ -8,6 +8,10 @@ Every module contains a full `src/` scaffold
 with a `package-info.java` in each module's primary leaf package under both
 `src/main/java` and `src/test/java`.
 
+Every module that the `app` composes also carries a Spring `@Configuration` class in a
+`.config` sub-package; the `app` module's `Application` class `@Import`s them all so the
+whole tree assembles into a single Spring context.
+
 == Fixed Modules
 
 These modules are always generated regardless of input.
@@ -37,8 +41,11 @@ _Depends on_: `common-domain`
 
 `app`::
 Application assembly — produces the runnable artifact (e.g. Spring Boot über-jar).
+Contains the Spring Boot `Application` (`@SpringBootApplication`) and `AppServletInitializer`
+(WAR deployment) classes in `{base.package}.app.config`, and adds the
+`spring-boot-starter-web` and `spring-boot-starter-data-jpa` dependencies.
 +
-_Package_: `{base.package}.app` +
+_Package_: `{base.package}.app`, `{base.package}.app.config` +
 _Depends on_: all non-test modules (`common-domain`, all domain and integration modules,
 all service modules and their `domain-service` modules, all presentation modules)
 
@@ -94,6 +101,7 @@ There is no `pom.xml` at the project root — `parent/` is a sibling of all othe
 
 It contains:
 
+* `<parent>` — inherits `spring-boot-starter-parent` (4.0.6) via an empty `<relativePath/>`, supplying Spring dependency management and plugin defaults
 * `<packaging>pom</packaging>`
 * `<modules>` — all sibling modules referenced as `../module` relative paths, sorted alphabetically
 * `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`

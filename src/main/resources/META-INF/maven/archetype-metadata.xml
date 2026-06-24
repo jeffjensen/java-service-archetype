@@ -56,6 +56,15 @@
       <!-- Comma-separated types, e.g. rest,graphql -->
     </requiredProperty>
 
+    <requiredProperty key="includeSpring">
+      <defaultValue>true</defaultValue>
+      <!-- true (default): generate the Spring Boot wiring — parent inherits
+           spring-boot-starter-parent, every app-composed module gets a @Configuration
+           class and spring-context, and app gets the Application / AppServletInitializer
+           classes plus the web and data-jpa starters.
+           false: omit all Spring artifacts (configs, classes, and pom items). -->
+    </requiredProperty>
+
   </requiredProperties>
 
   <!--

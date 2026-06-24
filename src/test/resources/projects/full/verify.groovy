@@ -199,6 +199,31 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
 assert text('service-orders/pom.xml').contains('<artifactId>domain-service-orders</artifactId>')               : 'service-orders must depend on domain-service-orders'
 assert text('service-notifications/pom.xml').contains('<artifactId>domain-service-notifications</artifactId>') : 'service-notifications must depend on domain-service-notifications'
 
+// ── Spring Boot wiring (#4) ──────────────────────────────────────────────────
+
+def appConfig = "app/src/main/java/${p}/app/config"
+check("${appConfig}/Application.java")
+check("${appConfig}/AppServletInitializer.java")
+def appMain = text("${appConfig}/Application.java")
+assert appMain.contains('@SpringBootApplication')       : 'Application must be @SpringBootApplication'
+assert appMain.contains('@EnableTransactionManagement') : 'Application must enable transaction management'
+assert appMain.contains('@Import({')                    : 'Application must @Import module configs'
+assert appMain.contains('com.example.full.domain.service.orders.config.DomainServiceOrdersConfiguration.class') \
+    : 'Application must @Import each module config class'
+assert text("${appConfig}/AppServletInitializer.java").contains('extends SpringBootServletInitializer') \
+    : 'AppServletInitializer must extend SpringBootServletInitializer'
+
+// every app-composed module carries a @Configuration class in its .config package
+check("common-domain/src/main/java/${p}/common/domain/config/CommonDomainConfiguration.java")
+check("presentation-rest/src/main/java/${p}/presentation/rest/config/PresentationRestConfiguration.java")
+assert text("common-domain/src/main/java/${p}/common/domain/config/CommonDomainConfiguration.java").contains('@Configuration') \
+    : 'config class must be annotated @Configuration'
+
+// parent imports the Spring Boot BOM; app pulls the starters
+assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
+assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')    : 'app must depend on spring-boot-starter-web'
+assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>')   : 'app must depend on spring-boot-starter-data-jpa'
+
 // ── package-info Javadoc conventions (#2 test wording, #6 infrastructure, #7 GraphQL) ──
 
 assert text("common-domain/src/test/java/${p}/common/domain/package-info.java").contains('Tests for') \
