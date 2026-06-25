@@ -219,6 +219,19 @@ check("presentation-rest/src/main/java/${p}/presentation/rest/config/Presentatio
 assert text("common-domain/src/main/java/${p}/common/domain/config/CommonDomainConfiguration.java").contains('@Configuration') \
     : 'config class must be annotated @Configuration'
 
+// every app-composed module also carries a {Module}ComponentScan marker interface in its root
+// package, with the @Configuration anchored to it via @ComponentScan(basePackageClasses=…)
+check("common-domain/src/main/java/${p}/common/domain/CommonDomainComponentScan.java")
+check("presentation-rest/src/main/java/${p}/presentation/rest/PresentationRestComponentScan.java")
+def scanIface = text("common-domain/src/main/java/${p}/common/domain/CommonDomainComponentScan.java")
+assert scanIface.contains('public interface CommonDomainComponentScan')     : 'marker must be a public interface'
+assert scanIface.contains('Anchor class for based package class scanning.') : 'marker must carry the anchor Javadoc'
+def cdConfig = text("common-domain/src/main/java/${p}/common/domain/config/CommonDomainConfiguration.java")
+assert cdConfig.contains('@ComponentScan(basePackageClasses = CommonDomainComponentScan.class)') \
+    : 'config class must @ComponentScan its module marker interface'
+assert cdConfig.contains("import ${p.replace('/', '.')}.common.domain.CommonDomainComponentScan;") \
+    : 'config class must import its module marker interface'
+
 // parent imports the Spring Boot BOM; app pulls the starters
 assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
 assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')    : 'app must depend on spring-boot-starter-web'

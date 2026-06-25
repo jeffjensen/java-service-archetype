@@ -204,27 +204,53 @@ if (subDir.isDirectory()) projectDir = subDir
 // ─── Spring configuration class generator ─────────────────────────────────────
 // When includeSpring is true, every module the app composes carries a @Configuration
 // class in its `.config` sub-package (the app's Application class @Imports them all)
-// and declares spring-context. Everything here is skipped when includeSpring is false.
+// and declares spring-context. The module root package also gets a marker
+// "{Module}ComponentScan" interface that the @Configuration targets via
+// @ComponentScan(basePackageClasses=…) — a type-safe anchor for scanning the whole
+// module. Everything here is skipped when includeSpring is false.
 
 def SPRING_CONTEXT = [groupId: 'org.springframework', artifactId: 'spring-context']
 def springCtx = includeSpring ? [SPRING_CONTEXT] : []   // appended to module deps only when Spring is enabled
 def configFqns = []
 
-/** Writes a @Configuration class into {module}/…/{mainSub}/config and records its FQN; no-op when Spring is off. */
+/** Writes a {Module}ComponentScan marker interface into the module root package and a
+ *  @Configuration class (anchored to it via @ComponentScan) into {module}/…/{mainSub}/config,
+ *  recording the config FQN; no-op when Spring is off. */
 def configClass = { String module, String mainSub ->
     if (!includeSpring) return null
-    def className = module.split('-').collect { it.capitalize() }.join('') + 'Configuration'
+    def baseName  = module.split('-').collect { it.capitalize() }.join('')
+    def className = baseName + 'Configuration'
+    def scanName  = baseName + 'ComponentScan'
+
+    // Marker interface in the module root package — the @ComponentScan basePackageClasses anchor.
+    def rootPkgFq = (pkgPath + '/' + mainSub).replace('/', '.')
+    writeFile(projectDir, "${module}/src/main/java/${pkgPath}/${mainSub}/${scanName}.java", """\
+package ${rootPkgFq};
+
+/**
+ * Anchor class for based package class scanning.
+ */
+public interface ${scanName} {
+}
+""")
+
     def pkgFq = (pkgPath + '/' + mainSub + '/config').replace('/', '.')
     def dir = "${module}/src/main/java/${pkgPath}/${mainSub}/config"
+    def imports = [
+        "import ${rootPkgFq}.${scanName};",
+        'import org.springframework.context.annotation.ComponentScan;',
+        'import org.springframework.context.annotation.Configuration;',
+    ].sort().join('\n')
     writeFile(projectDir, "${dir}/${className}.java", """\
 package ${pkgFq};
 
-import org.springframework.context.annotation.Configuration;
+${imports}
 
 /**
  * Spring configuration for the ${module} module.
  */
 @Configuration
+@ComponentScan(basePackageClasses = ${scanName}.class)
 public class ${className} {
 }
 """)
