@@ -1,7 +1,10 @@
 = java-service-archetype
 
-Maven archetype that generates a structured multi-module Java service project.
-You describe your integrations, service areas, and presentation architectural tiers at generation time;
+Maven archetype that generates a structured multi-module Java service app
+and optionally using Spring Boot
+with integration, service, and presentation architectural tiers.
+
+Describe the application's integrations, service areas, and presentation architectural tiers at generation time;
 the archetype builds the full module tree and wires up all POMs.
 
 == Generate a Project
