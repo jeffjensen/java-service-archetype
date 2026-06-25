@@ -12,6 +12,16 @@ Every module that the `app` composes also carries a Spring `@Configuration` clas
 `.config` sub-package; the `app` module's `Application` class `@Import`s them all so the
 whole tree assembles into a single Spring context.
 
+== Module Naming
+
+Throughout this page each module is referred to by its directory name (e.g. `common-domain`).
+A module's Maven `artifactId` is the project `artifactId`, followed by `-`, followed by that
+directory name. For a project generated with `artifactId=my-service`, the `common-domain`
+module's `artifactId` is `my-service-common-domain`, and the aggregator/BOM under `parent/`
+is `my-service-parent`. Every module inherits its `groupId` and `version` from `parent/`.
+This prefix applies to `artifactId`s only — the directory names and Java package names listed
+below are unaffected.
+
 == Fixed Modules
 
 These modules are always generated regardless of input.

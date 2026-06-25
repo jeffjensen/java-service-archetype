@@ -15,8 +15,16 @@ def check = { String rel ->
     assert new File(basedir, rel).exists() : "Missing: $rel"
 }
 
-def text = { String rel ->
+// Instruction 2: each module's artifactId is "<artifactId property>-<dir name>". The wiring
+// assertions below use bare module names, so text() strips the "<aid>-" prefix from <artifactId>
+// tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
+// generated project's real Maven build — run before this script — fails on any inconsistent reference.
+def aid = 'multi-service-test'
+def raw = { String rel ->
     new File(basedir, rel).text
+}
+def text = { String rel ->
+    raw(rel).replace("<artifactId>${aid}-", '<artifactId>')
 }
 
 // ── 1. parent/ module exists; no root pom.xml ────────────────────────────────
@@ -45,10 +53,10 @@ assert !new File(basedir, 'service').exists() \
 
 // ── 4. parent/pom.xml completeness and sort order ────────────────────────────
 
-def parentPom = text('parent/pom.xml')
+def parentPom = raw('parent/pom.xml')
 modules.each { m ->
-    assert parentPom.contains("<module>../${m}</module>")      : "parent <modules> missing: ../$m"
-    assert parentPom.contains("<artifactId>${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
+    assert parentPom.contains("<module>../${m}</module>")             : "parent <modules> missing: ../$m"
+    assert parentPom.contains("<artifactId>${aid}-${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
 }
 assert parentPom.contains('<packaging>pom</packaging>') : "parent must have pom packaging"
 
@@ -58,8 +66,9 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : "parent <
 
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
-assert dmIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
-assert dmIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmIds.size()}"
+def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
+assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 5. Child modules reference parent/pom.xml ────────────────────────────────
 
@@ -69,8 +78,8 @@ modules.each { m ->
 }
 
 modules.each { m ->
-    assert text("${m}/pom.xml").contains("<artifactId>${m}</artifactId>") \
-        : "${m}/pom.xml must declare its own artifactId as '${m}'"
+    assert raw("${m}/pom.xml").contains("<artifactId>${aid}-${m}</artifactId>") \
+        : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
 }
 
 // ── 6. Source skeletons ───────────────────────────────────────────────────────

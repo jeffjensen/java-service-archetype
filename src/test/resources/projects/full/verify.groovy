@@ -16,8 +16,16 @@ def check = { String rel ->
     assert new File(basedir, rel).exists() : "Missing: $rel"
 }
 
-def text = { String rel ->
+// Instruction 2: each module's artifactId is "<artifactId property>-<dir name>". The wiring
+// assertions below use bare module names, so text() strips the "<aid>-" prefix from <artifactId>
+// tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
+// generated project's real Maven build — run before this script — fails on any inconsistent reference.
+def aid = 'full-test'
+def raw = { String rel ->
     new File(basedir, rel).text
+}
+def text = { String rel ->
+    raw(rel).replace("<artifactId>${aid}-", '<artifactId>')
 }
 
 // ── 1. parent/ module exists; no root pom.xml ────────────────────────────────
@@ -56,10 +64,10 @@ assert !new File(basedir, 'service-inventory').exists() : "undeclared 'service-i
 
 // ── 5. parent/pom.xml completeness and sort order ────────────────────────────
 
-def parentPom = text('parent/pom.xml')
+def parentPom = raw('parent/pom.xml')
 modules.each { m ->
-    assert parentPom.contains("<module>../${m}</module>")      : "parent <modules> missing: ../$m"
-    assert parentPom.contains("<artifactId>${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
+    assert parentPom.contains("<module>../${m}</module>")             : "parent <modules> missing: ../$m"
+    assert parentPom.contains("<artifactId>${aid}-${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
 }
 assert parentPom.contains('<packaging>pom</packaging>') : "parent must have pom packaging"
 
@@ -69,8 +77,9 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : "parent <
 
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
-assert dmIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
-assert dmIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmIds.size()}"
+def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
+assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 6. Child modules reference parent/pom.xml ────────────────────────────────
 
@@ -80,8 +89,8 @@ modules.each { m ->
 }
 
 modules.each { m ->
-    assert text("${m}/pom.xml").contains("<artifactId>${m}</artifactId>") \
-        : "${m}/pom.xml must declare its own artifactId as '${m}'"
+    assert raw("${m}/pom.xml").contains("<artifactId>${aid}-${m}</artifactId>") \
+        : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
 }
 
 // ── 7. Source skeletons ───────────────────────────────────────────────────────
@@ -125,6 +134,16 @@ assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${
 assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")          : 'acceptance-tests package-info.java has wrong package declaration'
 assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                        : 'common-testing must have test Java package-info.java'
 assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                          : 'acceptance-tests must have main Java package-info.java'
+
+// ── #1 acceptance-tests package-info wording ─────────────────────────────────
+// The test package holds the functional tests themselves (no "Tests for " prefix); the main
+// package holds supporting infrastructure for those tests.
+def atTestPkgInfo = text("acceptance-tests/src/test/java/${p}/at/package-info.java")
+assert atTestPkgInfo.contains('Functional acceptance tests for the application.') : '#1: acceptance-tests test package-info must describe the functional tests'
+assert !atTestPkgInfo.contains('Tests for')                                       : '#1: acceptance-tests test package-info must not carry the "Tests for " prefix'
+def atMainPkgInfo = text("acceptance-tests/src/main/java/${p}/at/package-info.java")
+assert atMainPkgInfo.contains('Supporting classes and infrastructure for the functional acceptance tests.') \
+    : '#1: acceptance-tests main package-info must describe supporting infrastructure'
 
 // ── 8. common-domain wiring for domain/service modules ───────────────────────
 
@@ -225,7 +244,7 @@ check("common-domain/src/main/java/${p}/common/domain/CommonDomainComponentScan.
 check("presentation-rest/src/main/java/${p}/presentation/rest/PresentationRestComponentScan.java")
 def scanIface = text("common-domain/src/main/java/${p}/common/domain/CommonDomainComponentScan.java")
 assert scanIface.contains('public interface CommonDomainComponentScan')     : 'marker must be a public interface'
-assert scanIface.contains('Anchor class for based package class scanning.') : 'marker must carry the anchor Javadoc'
+assert scanIface.contains('Anchor class for basePackageClasses component scanning.') : 'marker must carry the anchor Javadoc'
 def cdConfig = text("common-domain/src/main/java/${p}/common/domain/config/CommonDomainConfiguration.java")
 assert cdConfig.contains('@ComponentScan(basePackageClasses = CommonDomainComponentScan.class)') \
     : 'config class must @ComponentScan its module marker interface'
@@ -237,6 +256,22 @@ assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>')
 assert parentPom.contains('<version>4.1.0</version>')                            : 'parent must pin Spring Boot 4.1.0'
 assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')    : 'app must depend on spring-boot-starter-web'
 assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>')   : 'app must depend on spring-boot-starter-data-jpa'
+
+// ── #4–#7 parent-managed and inherited Spring dependencies ───────────────────
+// #4 dependencyManagement manages spring-core, excluding commons-logging
+def dmSection = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
+assert dmSection.contains('<artifactId>spring-core</artifactId>') : '#4: dependencyManagement must manage spring-core'
+assert dmSection =~ /(?s)<artifactId>spring-core<\/artifactId>\s*<exclusions>\s*<exclusion>\s*<groupId>commons-logging<\/groupId>/ \
+    : '#4: spring-core must exclude commons-logging'
+// #5 parent <dependencies> adds spring-boot-starter-test (test scope) for every module, no commons-logging
+assert parentPom.contains('<artifactId>spring-boot-starter-test</artifactId>') : '#5: parent must add spring-boot-starter-test for all modules'
+assert parentPom =~ /(?s)<artifactId>spring-boot-starter-test<\/artifactId>\s*<scope>test<\/scope>/ : '#5: spring-boot-starter-test must be test-scoped'
+// #6 parent <dependencies> adds spring-boot-starter-logging + jspecify (compile scope) for every module
+assert parentPom.contains('<artifactId>spring-boot-starter-logging</artifactId>') : '#6: parent must add spring-boot-starter-logging for all modules'
+assert parentPom.contains('<artifactId>jspecify</artifactId>')                    : '#6: parent must add jspecify for all modules'
+// #7 common-testing declares spring-boot-starter-test at compile scope
+assert raw('common-testing/pom.xml') =~ /(?s)<artifactId>spring-boot-starter-test<\/artifactId>\s*<scope>compile<\/scope>/ \
+    : '#7: common-testing must declare spring-boot-starter-test at compile scope'
 
 // ── per-module Spring dependencies (#3): the blanket spring-context is gone; common-domain
 //    carries the core starter (so "plain" modules inherit @Configuration support transitively)

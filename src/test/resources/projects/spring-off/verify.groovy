@@ -16,8 +16,16 @@ _buildLog.text = "=== IT: ${_testName} ===\n${_propsText}${'=' * 40}\n\n${_exist
 def check = { String rel ->
     assert new File(basedir, rel).exists() : "Missing: $rel"
 }
-def text = { String rel ->
+// Instruction 2: each module's artifactId is "<artifactId property>-<dir name>". The wiring
+// assertions below use bare module names, so text() strips the "<aid>-" prefix from <artifactId>
+// tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
+// generated project's real Maven build — run before this script — fails on any inconsistent reference.
+def aid = 'spring-off-test'
+def raw = { String rel ->
     new File(basedir, rel).text
+}
+def text = { String rel ->
+    raw(rel).replace("<artifactId>${aid}-", '<artifactId>')
 }
 
 // ── 1. parent/ module exists; no root pom.xml ────────────────────────────────
@@ -34,12 +42,20 @@ def modules = [
 ]
 modules.each { m -> check("${m}/pom.xml") }
 
+// instruction 2: every module declares its artifactId as "<aid>-<dir name>"
+modules.each { m ->
+    assert raw("${m}/pom.xml").contains("<artifactId>${aid}-${m}</artifactId>") \
+        : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
+}
+
 // ── 3. parent/pom.xml: no Spring inheritance; sibling-only dependencyManagement ─
 
-def parentPom = text('parent/pom.xml')
+def parentPom = raw('parent/pom.xml')
 assert parentPom.contains('<packaging>pom</packaging>') : 'parent must have pom packaging'
 assert !parentPom.contains('<parent>')                  : 'includeSpring=false: parent must not inherit a parent POM'
 assert !parentPom.contains('spring-boot')               : 'includeSpring=false: no spring-boot references in parent'
+assert !parentPom.contains('spring-core')               : 'includeSpring=false: no spring-core in parent dependencyManagement (#4)'
+assert !parentPom.contains('jspecify')                  : 'includeSpring=false: no jspecify in parent dependencies (#6)'
 
 def moduleOrder = modules.sort().collect { "<module>../${it}</module>" }
 def moduleBlock = parentPom.replaceAll(/(?s).*<modules>(.*?)<\/modules>.*/, '$1')
@@ -47,7 +63,8 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : 'parent <
 
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
-assert dmIds == modules.sort() : 'parent <dependencyManagement> must list exactly the sibling modules'
+def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
+assert dmModuleIds == modules.sort() : 'parent <dependencyManagement> must list exactly the sibling modules'
 
 // ── 4. No Spring entry-point classes and no @Configuration / .config packages ─
 

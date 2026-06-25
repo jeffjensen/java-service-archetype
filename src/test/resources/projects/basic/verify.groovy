@@ -15,8 +15,17 @@ def check = { String rel ->
     assert new File(basedir, rel).exists() : "Missing: $rel"
 }
 
-def text = { String rel ->
+// Instruction 2: each module's artifactId is "<artifactId property>-<dir name>". The inter-module
+// wiring assertions below are written in terms of bare module names, so text() strips the "<aid>-"
+// prefix from <artifactId> tags; the prefix itself is verified explicitly via raw() (each module's
+// own artifactId, the parent dependencyManagement, and the parent artifactId), and the generated
+// project's real Maven build — run before this script — would fail on any inconsistent reference.
+def aid = 'basic-test'
+def raw = { String rel ->
     new File(basedir, rel).text
+}
+def text = { String rel ->
+    raw(rel).replace("<artifactId>${aid}-", '<artifactId>')
 }
 
 // ── 1. parent/ module exists; no root pom.xml ────────────────────────────────
@@ -41,15 +50,15 @@ assert !new File(basedir, 'integration-database-main').exists(): "'database' mus
 
 // ── 4. parent/pom.xml lists every module with "../" relative paths ───────────
 
-def parentPom = text('parent/pom.xml')
+def parentPom = raw('parent/pom.xml')
 modules.each { m ->
-    assert parentPom.contains("<module>../${m}</module>")      : "parent <modules> missing: ../$m"
-    assert parentPom.contains("<artifactId>${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
+    assert parentPom.contains("<module>../${m}</module>")             : "parent <modules> missing: ../$m"
+    assert parentPom.contains("<artifactId>${aid}-${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
 }
 assert parentPom.contains('<packaging>pom</packaging>')  : "parent must have pom packaging"
 assert parentPom.contains('${project.version}')          : "dependencyManagement must use \${project.version}"
 assert parentPom.contains('<groupId>com.example</groupId>')      : 'parent must have correct groupId'
-assert parentPom.contains('<artifactId>basic-test</artifactId>') : 'parent must have correct artifactId'
+assert parentPom.contains('<artifactId>basic-test-parent</artifactId>') : 'parent must have correct artifactId'
 assert parentPom.contains('<version>1.0.0-SNAPSHOT</version>')   : 'parent must have correct version'
 assert parentPom.contains('<java.version>21</java.version>')     : 'parent must declare java.version=21'
 assert parentPom.contains('<maven.compiler.release>${java.version}</maven.compiler.release>') \
@@ -99,8 +108,9 @@ assert foundModules == moduleOrder : "parent <modules> not sorted alphabetically
 
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
-assert dmIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
-assert dmIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmIds.size()}"
+def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
+assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 6. Child module <parent> references parent/pom.xml ───────────────────────
 
@@ -111,8 +121,8 @@ modules.each { m ->
 }
 
 modules.each { m ->
-    assert text("${m}/pom.xml").contains("<artifactId>${m}</artifactId>") \
-        : "${m}/pom.xml must declare its own artifactId as '${m}'"
+    assert raw("${m}/pom.xml").contains("<artifactId>${aid}-${m}</artifactId>") \
+        : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
 }
 
 // ── 7. Source directory skeletons ────────────────────────────────────────────

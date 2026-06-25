@@ -33,7 +33,8 @@ def writeFile = { File base, String rel, String text ->
 }
 
 def srcTree = { File base, String module, String pkgPath,
-                List<String> mainSubs, List<String> testSubs, String description ->
+                List<String> mainSubs, List<String> testSubs, String description,
+                String testDescription = null ->
     ensureDir(base, "${module}/src/main/java")
     mainSubs.each { sub ->
         def fullPkg = (pkgPath + '/' + sub).replace('/', '.')
@@ -48,8 +49,10 @@ package ${fullPkg};
     }
     ensureDir(base, "${module}/src/main/resources")
     ensureDir(base, "${module}/src/test/java")
-    // Test-package Javadoc reuses the main wording, prefixed to mark it as the tests for that code.
-    def testDesc = 'Tests for ' + lcFirst(description.replaceAll(/\.\s*$/, '')) + '.'
+    // Test-package Javadoc reuses the main wording, prefixed to mark it as the tests for that code,
+    // unless the caller supplies an explicit testDescription (e.g. acceptance-tests, whose test
+    // package holds the functional tests themselves rather than tests *for* the main package).
+    def testDesc = testDescription ?: ('Tests for ' + lcFirst(description.replaceAll(/\.\s*$/, '')) + '.')
     testSubs.each { sub ->
         def fullPkg = (pkgPath + '/' + sub).replace('/', '.')
         def dir = "${module}/src/test/java/${pkgPath}/${sub}"
@@ -75,23 +78,37 @@ def failsafeSection = """\
   </build>
 """
 
-/** Builds a child-module pom.xml string (2-space indent).
- *  A dependency entry is either a String (an internal module artifactId, inheriting this project's
- *  groupId and BOM-managed version) or a Map [groupId:…, artifactId:…, scope:…] for an external
+/** Builds a child-module pom.xml string (2-space indent). `prefix` is the project artifactId;
+ *  every module's artifactId is rendered as "{prefix}-{aId}" and the inherited parent as
+ *  "{prefix}-parent".
+ *  A dependency entry is either a String (an internal module's bare name, rendered as
+ *  "{prefix}-{name}" with this project's groupId and BOM-managed version) or a Map
+ *  [groupId:…, artifactId:…, scope:…, exclusions:[[groupId:…, artifactId:…], …]] for an external
  *  dependency. Dependencies are grouped into a "<!-- TEST -->" section (scope 'test', emitted first)
  *  and a "<!-- PROD -->" section (everything else); both headers are always present. */
-def modulePom = { String gId, String parentAId, String ver,
+def modulePom = { String gId, String prefix, String ver,
                    String aId, String desc, List deps = [], String buildSection = '' ->
     def depsSection = ''
     if (deps) {
         def renderDep = { dep ->
             def dGroup = (dep instanceof Map) ? dep.groupId : gId
-            def dArtifact = (dep instanceof Map) ? dep.artifactId : dep
+            def dArtifact = (dep instanceof Map) ? dep.artifactId : "${prefix}-${dep}"
             def dScope = (dep instanceof Map && dep.scope) ? "\n      <scope>${dep.scope}</scope>" : ''
+            def dExclusions = ''
+            if (dep instanceof Map && dep.exclusions) {
+                def exLines = dep.exclusions.collect { ex ->
+                    """\
+        <exclusion>
+          <groupId>${ex.groupId}</groupId>
+          <artifactId>${ex.artifactId}</artifactId>
+        </exclusion>"""
+                }.join('\n')
+                dExclusions = "\n      <exclusions>\n${exLines}\n      </exclusions>"
+            }
             """\
     <dependency>
       <groupId>${dGroup}</groupId>
-      <artifactId>${dArtifact}</artifactId>${dScope}
+      <artifactId>${dArtifact}</artifactId>${dScope}${dExclusions}
     </dependency>"""
         }
         def isTest = { it instanceof Map && it.scope == 'test' }
@@ -115,12 +132,12 @@ def modulePom = { String gId, String parentAId, String ver,
 
   <parent>
     <groupId>${gId}</groupId>
-    <artifactId>${parentAId}</artifactId>
+    <artifactId>${prefix}-parent</artifactId>
     <version>${ver}</version>
     <relativePath>../parent/pom.xml</relativePath>
   </parent>
 
-  <artifactId>${aId}</artifactId>
+  <artifactId>${prefix}-${aId}</artifactId>
   <description>${desc}</description>
 ${depsSection}${buildSection}</project>
 """
@@ -272,7 +289,7 @@ def configClass = { String module, String mainSub ->
 package ${rootPkgFq};
 
 /**
- * Anchor class for based package class scanning.
+ * Anchor class for basePackageClasses component scanning.
  */
 public interface ${scanName} {
 }
@@ -314,10 +331,55 @@ def dmXml = allModules.collect { mod ->
     """\
       <dependency>
         <groupId>${groupId}</groupId>
-        <artifactId>${mod}</artifactId>
+        <artifactId>${artifactId}-${mod}</artifactId>
         <version>\${project.version}</version>
       </dependency>"""
 }.join('\n')
+
+// ─── Parent-pom dependency blocks (instructions 4–6) ──────────────────────────
+// All gated on includeSpring so a Spring-off project carries no Spring artifacts.
+//   #4 dependencyManagement PROD: manage spring-core, excluding commons-logging.
+//   #5 dependencies TEST: spring-boot-starter-test (test scope, all submodules), no commons-logging.
+//   #6 dependencies PROD: spring-boot-starter-logging + jspecify (compile scope, all submodules).
+def springCoreDm = !includeSpring ? '' : '\n' + [
+    '      <dependency>',
+    '        <groupId>org.springframework</groupId>',
+    '        <artifactId>spring-core</artifactId>',
+    '        <exclusions>',
+    '          <exclusion>',
+    '            <groupId>commons-logging</groupId>',
+    '            <artifactId>commons-logging</artifactId>',
+    '          </exclusion>',
+    '        </exclusions>',
+    '      </dependency>',
+].join('\n')
+
+def parentDependencies = !includeSpring ? '' : '\n' + [
+    '  <dependencies>',
+    '    <!-- TEST -->',
+    '    <dependency>',
+    '      <groupId>org.springframework.boot</groupId>',
+    '      <artifactId>spring-boot-starter-test</artifactId>',
+    '      <scope>test</scope>',
+    '      <exclusions>',
+    '        <exclusion>',
+    '          <groupId>commons-logging</groupId>',
+    '          <artifactId>commons-logging</artifactId>',
+    '        </exclusion>',
+    '      </exclusions>',
+    '    </dependency>',
+    '',
+    '    <!-- PROD -->',
+    '    <dependency>',
+    '      <groupId>org.springframework.boot</groupId>',
+    '      <artifactId>spring-boot-starter-logging</artifactId>',
+    '    </dependency>',
+    '    <dependency>',
+    '      <groupId>org.jspecify</groupId>',
+    '      <artifactId>jspecify</artifactId>',
+    '    </dependency>',
+    '  </dependencies>',
+].join('\n') + '\n'
 
 def parentInherit = includeSpring ? """\
   <parent>
@@ -338,11 +400,11 @@ def parentPom = """\
   <modelVersion>4.0.0</modelVersion>
 
 ${parentInherit}  <groupId>${groupId}</groupId>
-  <artifactId>${artifactId}</artifactId>
+  <artifactId>${artifactId}-parent</artifactId>
   <version>${version}</version>
   <packaging>pom</packaging>
 
-  <name>${artifactId}</name>
+  <name>${artifactId}-parent</name>
 
   <modules>
 ${modulesXml}
@@ -365,10 +427,13 @@ ${modulesXml}
 
   <dependencyManagement>
     <dependencies>
-${dmXml}
+      <!-- TEST -->
+
+      <!-- PROD -->
+${dmXml}${springCoreDm}
     </dependencies>
   </dependencyManagement>
-
+${parentDependencies}
   <build>
     <pluginManagement>
       <plugins>
@@ -537,11 +602,19 @@ configClass('common-domain', 'common/domain')
 
 // ─── common-testing ───────────────────────────────────────────────────────────
 
+// common-testing carries spring-boot-starter-test at compile scope (it is test-support code that
+// other modules compile their tests against), overriding the test-scoped copy every module inherits
+// from the parent (#5). No commons-logging exclusion is needed here — the parent already excludes it.
+def commonTestingDeps = ['common-domain']
+if (includeSpring) {
+    commonTestingDeps << [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-test',
+                          scope: 'compile']
+}
 writeFile(projectDir, 'common-testing/pom.xml',
     modulePom(groupId, artifactId, version,
         'common-testing',
         'Testing infrastructure common to all test modules.',
-        ['common-domain']))
+        commonTestingDeps))
 srcTree(projectDir, 'common-testing', pkgPath,
     ['common/testing'], ['common/testing'],
     'Test infrastructure common to all modules.')
@@ -725,5 +798,8 @@ writeFile(projectDir, 'acceptance-tests/pom.xml',
         'Functional acceptance tests for the application.',
         atDeps,
         failsafeSection))
+// The test package holds the functional tests themselves (no "Tests for " prefix); the rarely-used
+// main package holds supporting classes / infrastructure for those tests.
 srcTree(projectDir, 'acceptance-tests', pkgPath, ['at'], ['at'],
+    'Supporting classes and infrastructure for the functional acceptance tests.',
     'Functional acceptance tests for the application.')
