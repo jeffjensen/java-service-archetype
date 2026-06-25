@@ -133,6 +133,14 @@ assert text('domain-jms-events/pom.xml').contains('<artifactId>common-domain</ar
 assert text('domain-rest/pom.xml').contains('<artifactId>common-domain</artifactId>')        : 'domain-rest (presentation) missing common-domain dep'
 assert text('service/pom.xml').contains('<artifactId>common-domain</artifactId>')            : 'service missing common-domain dep'
 
+// rest integration is a client (spring-boot-starter-restclient), not the servlet web server;
+// the rest presentation is the server (spring-boot-starter-web)
+def restIntegPom = text('integration-rest-orders/pom.xml')
+assert restIntegPom.contains('<artifactId>spring-boot-starter-restclient</artifactId>') : 'rest integration must use spring-boot-starter-restclient'
+assert !restIntegPom.contains('<artifactId>spring-boot-starter-web</artifactId>')       : 'rest integration must not pull the servlet web starter'
+assert text('integration-db-users/pom.xml').contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') : 'database integration must use spring-boot-starter-data-jpa'
+assert text('presentation-rest/pom.xml').contains('<artifactId>spring-boot-starter-web</artifactId>')         : 'rest presentation must use spring-boot-starter-web'
+
 // ── 9. app and acceptance-tests ───────────────────────────────────────────────
 
 def appPom = text('app/pom.xml')

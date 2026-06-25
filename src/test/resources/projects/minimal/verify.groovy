@@ -142,12 +142,17 @@ assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>
 check("domain-service/src/main/java/${p}/domain/service/package-info.java")
 check("domain-service/src/test/java/${p}/domain/service/package-info.java")
 check("app/src/main/java/${p}/app/config/Application.java")
-check("app/src/main/java/${p}/app/config/AppServletInitializer.java")
 def appMain = text("app/src/main/java/${p}/app/config/Application.java")
 assert appMain.contains('@SpringBootApplication')                                : 'Application must be @SpringBootApplication'
 assert appMain.contains("${pkg}.domain.service.config.DomainServiceConfiguration.class") : 'Application must @Import DomainServiceConfiguration'
 assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>')   : 'parent must inherit spring-boot-starter-parent'
-assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')       : 'app must depend on spring-boot-starter-web'
+// minimal has neither a 'rest' presentation nor a 'database' integration, so the app declares
+// no role starter, omits @EnableTransactionManagement, and generates no AppServletInitializer
+assert !new File(basedir, "app/src/main/java/${p}/app/config/AppServletInitializer.java").exists() \
+    : 'no rest presentation: AppServletInitializer must not be generated'
+assert !appMain.contains('@EnableTransactionManagement')                         : 'no database integration: Application must not @EnableTransactionManagement'
+assert !appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')      : 'no rest presentation: app must not declare spring-boot-starter-web'
+assert !appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') : 'no database integration: app must not declare spring-boot-starter-data-jpa'
 assert text("common-testing/src/test/java/${p}/common/testing/package-info.java").contains('Tests for') \
     : 'test package-info Javadoc must begin "Tests for ..."'
 

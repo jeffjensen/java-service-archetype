@@ -111,6 +111,17 @@ def appPom = text('app/pom.xml')
 assert !appPom.contains('<artifactId>domain-rest</artifactId>')       : 'app must not reference non-existent presentation module'
 assert !appPom.contains('<artifactId>presentation-rest</artifactId>') : 'app must not reference non-existent presentation module'
 
+// ── Spring entry points: database integration but no rest presentation ───────
+// → app gets the data-jpa starter + @EnableTransactionManagement, but no web starter and no
+//   AppServletInitializer (it is a JPA application, not a servlet web application).
+check("app/src/main/java/${p}/app/config/Application.java")
+def appMain = text("app/src/main/java/${p}/app/config/Application.java")
+assert appMain.contains('@EnableTransactionManagement') : 'database integration: Application must @EnableTransactionManagement'
+assert !new File(basedir, "app/src/main/java/${p}/app/config/AppServletInitializer.java").exists() \
+    : 'no rest presentation: AppServletInitializer must not be generated'
+assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') : 'database integration: app must declare spring-boot-starter-data-jpa'
+assert !appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')     : 'no rest presentation: app must not declare spring-boot-starter-web'
+
 def atPom = text('acceptance-tests/pom.xml')
 ['app', 'common-domain', 'domain-db-main'].each { dep ->
     assert atPom.contains("<artifactId>${dep}</artifactId>") : "acceptance-tests missing dep: $dep"

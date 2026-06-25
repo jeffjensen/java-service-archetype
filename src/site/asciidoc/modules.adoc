@@ -41,9 +41,10 @@ _Depends on_: `common-domain`
 
 `app`::
 Application assembly — produces the runnable artifact (e.g. Spring Boot über-jar).
-Contains the Spring Boot `Application` (`@SpringBootApplication`) and `AppServletInitializer`
-(WAR deployment) classes in `{base.package}.app.config`, and adds the
-`spring-boot-starter-web` and `spring-boot-starter-data-jpa` dependencies.
+Contains the Spring Boot `Application` (`@SpringBootApplication`) class in
+`{base.package}.app.config`, and adds the role starters its composition calls for — a `rest`
+presentation adds `spring-boot-starter-web` and an `AppServletInitializer` (WAR deployment)
+class; a `database` integration adds `spring-boot-starter-data-jpa` and `@EnableTransactionManagement`.
 +
 _Package_: `{base.package}.app`, `{base.package}.app.config` +
 _Depends on_: all non-test modules (`common-domain`, all domain and integration modules,
@@ -101,7 +102,7 @@ There is no `pom.xml` at the project root — `parent/` is a sibling of all othe
 
 It contains:
 
-* `<parent>` — inherits `spring-boot-starter-parent` (4.0.6) via an empty `<relativePath/>`, supplying Spring dependency management and plugin defaults
+* `<parent>` — inherits `spring-boot-starter-parent` (4.1.0) via an empty `<relativePath/>`, supplying Spring dependency management and plugin defaults
 * `<packaging>pom</packaging>`
 * `<modules>` — all sibling modules referenced as `../module` relative paths, sorted alphabetically
 * `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`

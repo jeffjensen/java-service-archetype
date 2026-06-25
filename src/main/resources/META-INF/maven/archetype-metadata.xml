@@ -60,8 +60,11 @@
       <defaultValue>true</defaultValue>
       <!-- true (default): generate the Spring Boot wiring — parent inherits
            spring-boot-starter-parent, every app-composed module gets a @Configuration
-           class and spring-context, and app gets the Application / AppServletInitializer
-           classes plus the web and data-jpa starters.
+           class plus the Spring Boot starter suited to its role (common-domain carries
+           the core spring-boot-starter that the plain modules inherit transitively), and
+           app gets the Application class plus the role starters and entry-point classes its
+           composition calls for (web + AppServletInitializer for a rest presentation,
+           data-jpa + @EnableTransactionManagement for a database integration).
            false: omit all Spring artifacts (configs, classes, and pom items). -->
     </requiredProperty>
 

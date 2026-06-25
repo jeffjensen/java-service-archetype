@@ -201,16 +201,60 @@ def projectDir = new File(request.outputDirectory)
 def subDir     = new File(projectDir, artifactId)
 if (subDir.isDirectory()) projectDir = subDir
 
+// ─── Spring dependency selection ──────────────────────────────────────────────
+// Each composed module declares the most specific Spring Boot starter that is useful
+// for its role rather than a blanket low-level dependency. common-domain (which every
+// other module depends on) carries the core spring-boot-starter, so the "plain" modules
+// — domain-* and the service modules — inherit the @Configuration / @ComponentScan API
+// transitively and declare no Spring dependency of their own. Presentation (server-side)
+// and integration (client-side) modules add a role-specific starter on top: a 'rest'
+// presentation serves endpoints via spring-boot-starter-web, while a 'rest' integration
+// consumes an external API via spring-boot-starter-restclient (no servlet web stack). All
+// gated on includeSpring; with Spring off no module references Spring at all.
+
+def STARTER            = [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter']
+def STARTER_WEB        = [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-web']
+def STARTER_DATA_JPA   = [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-data-jpa']
+def STARTER_GRAPHQL    = [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-graphql']
+def STARTER_RESTCLIENT = [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-restclient']
+
+/** Role-specific starter for an integration (client-side) module, or null when none fits
+ *  (those modules rely on the core starter inherited transitively via common-domain). */
+def integrationStarter = { String type ->
+    switch (type?.trim()?.toLowerCase()) {
+        case 'database': return STARTER_DATA_JPA
+        case 'rest':     return STARTER_RESTCLIENT   // consumes an external REST API; no servlet web stack
+        case 'graphql':  return STARTER_GRAPHQL
+        default:         return null
+    }
+}
+
+/** Role-specific starter for a presentation (server-side) module, or null when none fits. */
+def presentationStarter = { String type ->
+    switch (type?.trim()?.toLowerCase()) {
+        case 'rest':     return STARTER_WEB          // serves REST endpoints over servlet MVC
+        case 'graphql':  return STARTER_GRAPHQL
+        default:         return null
+    }
+}
+
+/** Wraps a resolved starter into a module deps list: a one-element list when Spring is on
+ *  and a starter was resolved, otherwise empty. */
+def starterDeps = { starter ->
+    (includeSpring && starter) ? [starter] : []
+}
+
+// common-domain's own Spring dependency: the core starter, which provides the
+// @Configuration API to every dependent module transitively (empty when Spring is off).
+def commonSpring = includeSpring ? [STARTER] : []
+
 // ─── Spring configuration class generator ─────────────────────────────────────
 // When includeSpring is true, every module the app composes carries a @Configuration
-// class in its `.config` sub-package (the app's Application class @Imports them all)
-// and declares spring-context. The module root package also gets a marker
-// "{Module}ComponentScan" interface that the @Configuration targets via
-// @ComponentScan(basePackageClasses=…) — a type-safe anchor for scanning the whole
-// module. Everything here is skipped when includeSpring is false.
+// class in its `.config` sub-package (the app's Application class @Imports them all).
+// The module root package also gets a marker "{Module}ComponentScan" interface that the
+// @Configuration targets via @ComponentScan(basePackageClasses=…) — a type-safe anchor
+// for scanning the whole module. Skipped entirely when includeSpring is false.
 
-def SPRING_CONTEXT = [groupId: 'org.springframework', artifactId: 'spring-context']
-def springCtx = includeSpring ? [SPRING_CONTEXT] : []   // appended to module deps only when Spring is enabled
 def configFqns = []
 
 /** Writes a {Module}ComponentScan marker interface into the module root package and a
@@ -279,7 +323,7 @@ def parentInherit = includeSpring ? """\
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.0.6</version>
+    <version>4.1.0</version>
     <relativePath/>
   </parent>
 
@@ -485,7 +529,7 @@ writeFile(projectDir, 'common-domain/pom.xml',
     modulePom(groupId, artifactId, version,
         'common-domain',
         'Domain classes common to all modules.',
-        springCtx))
+        commonSpring))
 srcTree(projectDir, 'common-domain', pkgPath,
     ['common/domain'], ['common/domain'],
     'Domain classes common to all modules.')
@@ -515,7 +559,7 @@ integrations.each { intg ->
         modulePom(groupId, artifactId, version,
             domMod,
             "Domain classes for the ${intg.name} ${disp} data source.",
-            ['common-domain'] + springCtx))
+            ['common-domain']))
     srcTree(projectDir, domMod, pkgPath,
         [domSub], [domSub],
         "Domain classes for the ${intg.name} ${disp} integration.")
@@ -525,7 +569,7 @@ integrations.each { intg ->
         modulePom(groupId, artifactId, version,
             implMod,
             "Integration classes (DAOs, repositories) for the ${intg.name} ${disp} data source.",
-            ['common-domain', domMod] + springCtx,
+            ['common-domain', domMod] + starterDeps(integrationStarter(intg.rawType)),
             failsafeSection))
     srcTree(projectDir, implMod, pkgPath,
         [implSub], [implSub],
@@ -551,7 +595,7 @@ serviceModules.each { svcMod ->
     writeFile(projectDir, "${domMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             domMod, domDesc,
-            ['common-domain'] + springCtx))
+            ['common-domain']))
     srcTree(projectDir, domMod, pkgPath, [domPkg], [domPkg], domDesc)
     configClass(domMod, domPkg)
 
@@ -559,7 +603,7 @@ serviceModules.each { svcMod ->
     writeFile(projectDir, "${svcMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             svcMod, svcDesc,
-            ['common-domain', domMod] + springCtx))
+            ['common-domain', domMod]))
     srcTree(projectDir, svcMod, pkgPath, [svcPkg], [svcPkg], svcDesc)
     configClass(svcMod, svcPkg)
 }
@@ -575,7 +619,7 @@ presentations.each { pType ->
         modulePom(groupId, artifactId, version,
             domMod,
             "Domain classes for the ${disp} presentation tier.",
-            ['common-domain'] + springCtx))
+            ['common-domain']))
     srcTree(projectDir, domMod, pkgPath,
         ["domain/${pType}"], ["domain/${pType}"],
         "Domain classes for the ${disp} presentation tier.")
@@ -585,7 +629,7 @@ presentations.each { pType ->
         modulePom(groupId, artifactId, version,
             implMod,
             "Request-handling classes (controllers) for the ${disp} presentation tier.",
-            ['common-domain', domMod] + springCtx))
+            ['common-domain', domMod] + starterDeps(presentationStarter(pType))))
     srcTree(projectDir, implMod, pkgPath,
         ["presentation/${pType}"], ["presentation/${pType}"],
         "Request-handling classes for the ${disp} presentation tier.")
@@ -594,10 +638,19 @@ presentations.each { pType ->
 
 // ─── app ─────────────────────────────────────────────────────────────────────
 
-def appStarters = includeSpring ? [
-    [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-web'],
-    [groupId: 'org.springframework.boot', artifactId: 'spring-boot-starter-data-jpa'],
-] : []
+// The app declares the web / data-jpa starters only when its composition warrants them, and
+// inherits whatever else its composed modules bring. A 'rest' presentation makes it a servlet
+// web app (so it also gets the WAR-deployment AppServletInitializer); a 'database' integration
+// gives it JPA + transactions (so Application carries @EnableTransactionManagement, which needs
+// spring-tx from spring-boot-starter-data-jpa). All gated on includeSpring.
+def hasRestPresentation    = presentations.contains('rest')
+def hasDatabaseIntegration = integrations.any { it.rawType == 'database' }
+
+def appStarters = []
+if (includeSpring) {
+    if (hasRestPresentation)    appStarters << STARTER_WEB
+    if (hasDatabaseIntegration) appStarters << STARTER_DATA_JPA
+}
 writeFile(projectDir, 'app/pom.xml',
     modulePom(groupId, artifactId, version,
         'app',
@@ -611,6 +664,10 @@ if (includeSpring) {
 // module's @Configuration class so the whole tree is assembled into one context.
 def appConfigPkg = (pkgPath + '/app/config').replace('/', '.')
 def importsBlock = configFqns.sort().collect { "    ${it}.class," }.join('\n')
+// @EnableTransactionManagement requires spring-tx (pulled in by spring-boot-starter-data-jpa),
+// so it is only emitted when a database integration puts that starter on the app's classpath.
+def txImport     = hasDatabaseIntegration ? 'import org.springframework.transaction.annotation.EnableTransactionManagement;\n' : ''
+def txAnnotation = hasDatabaseIntegration ? '@EnableTransactionManagement\n' : ''
 writeFile(projectDir, "app/src/main/java/${pkgPath}/app/config/Application.java", """\
 package ${appConfigPkg};
 
@@ -618,15 +675,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
-
+${txImport}
 /**
  * Spring Boot main application class for running standalone in Boot configured embedded container. Not used with WAR
  * deployment.
  */
 @SpringBootApplication
-@EnableTransactionManagement
-@Import({
+${txAnnotation}@Import({
 ${importsBlock}
 })
 public class Application {
@@ -635,6 +690,9 @@ public class Application {
     }
 }
 """)
+// AppServletInitializer extends SpringBootServletInitializer (a servlet web stack), so it is
+// only generated when a 'rest' presentation makes the app a servlet web application.
+if (hasRestPresentation) {
 writeFile(projectDir, "app/src/main/java/${pkgPath}/app/config/AppServletInitializer.java", """\
 package ${appConfigPkg};
 
@@ -656,6 +714,7 @@ public class AppServletInitializer extends SpringBootServletInitializer {
     }
 }
 """)
+}
 }
 
 // ─── acceptance-tests ─────────────────────────────────────────────────────────

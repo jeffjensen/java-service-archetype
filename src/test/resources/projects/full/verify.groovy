@@ -234,8 +234,30 @@ assert cdConfig.contains("import ${p.replace('/', '.')}.common.domain.CommonDoma
 
 // parent imports the Spring Boot BOM; app pulls the starters
 assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
+assert parentPom.contains('<version>4.1.0</version>')                            : 'parent must pin Spring Boot 4.1.0'
 assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')    : 'app must depend on spring-boot-starter-web'
 assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>')   : 'app must depend on spring-boot-starter-data-jpa'
+
+// ── per-module Spring dependencies (#3): the blanket spring-context is gone; common-domain
+//    carries the core starter (so "plain" modules inherit @Configuration support transitively)
+//    and presentation/integration modules each declare a role-specific starter.
+modules.each { m ->
+    assert !text("${m}/pom.xml").contains('spring-context') : "${m} must not declare spring-context"
+}
+assert text('common-domain/pom.xml').contains('<artifactId>spring-boot-starter</artifactId>') \
+    : 'common-domain must carry the core spring-boot-starter (provides the @Configuration API transitively)'
+assert text('presentation-rest/pom.xml').contains('<artifactId>spring-boot-starter-web</artifactId>') \
+    : 'presentation-rest must declare spring-boot-starter-web'
+assert text('presentation-graphql/pom.xml').contains('<artifactId>spring-boot-starter-graphql</artifactId>') \
+    : 'presentation-graphql must declare spring-boot-starter-graphql (#2)'
+assert text('integration-db-users/pom.xml').contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') \
+    : 'database integration must declare spring-boot-starter-data-jpa'
+assert text('integration-graphql-catalog/pom.xml').contains('<artifactId>spring-boot-starter-graphql</artifactId>') \
+    : 'graphql integration must declare spring-boot-starter-graphql'
+// plain domain/service modules declare no Spring dependency directly (inherited via common-domain)
+['domain-rest', 'domain-service-orders', 'service-orders'].each { m ->
+    assert !text("${m}/pom.xml").contains('org.springframework') : "${m} must not declare a Spring dependency directly"
+}
 
 // ── package-info Javadoc conventions (#2 test wording, #6 infrastructure, #7 GraphQL) ──
 
