@@ -122,6 +122,9 @@ def modulePom = { String gId, String prefix, String ver,
         depsSection = "\n  <dependencies>\n${section.join('\n')}\n  </dependencies>\n"
     }
 
+    // #3: a blank line separates <dependencies> from <build> when both are present.
+    def buildPart = buildSection ? "\n${buildSection}" : ''
+
     """\
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -139,7 +142,7 @@ def modulePom = { String gId, String prefix, String ver,
 
   <artifactId>${prefix}-${aId}</artifactId>
   <description>${desc}</description>
-${depsSection}${buildSection}</project>
+${depsSection}${buildPart}</project>
 """
 }
 
@@ -327,14 +330,20 @@ public class ${className} {
 
 def modulesXml = allModules.collect { "    <module>../${it}</module>" }.join('\n')
 
-def dmXml = allModules.collect { mod ->
+// #5: acceptance-tests and common-testing are test-only artifacts — managed in the TEST section
+// with <scope>test</scope>; every other module is managed (default/compile) in the PROD section.
+def DM_TEST_MODULES = ['acceptance-tests', 'common-testing']
+def dmEntry = { String mod ->
+    def scopeLine = (mod in DM_TEST_MODULES) ? '\n        <scope>test</scope>' : ''
     """\
       <dependency>
         <groupId>${groupId}</groupId>
         <artifactId>${artifactId}-${mod}</artifactId>
-        <version>\${project.version}</version>
+        <version>\${project.version}</version>${scopeLine}
       </dependency>"""
-}.join('\n')
+}
+def dmTestXml = allModules.findAll { it in DM_TEST_MODULES }.collect(dmEntry).join('\n')
+def dmProdXml = allModules.findAll { !(it in DM_TEST_MODULES) }.collect(dmEntry).join('\n')
 
 // ─── Parent-pom dependency blocks (instructions 4–6) ──────────────────────────
 // All gated on includeSpring so a Spring-off project carries no Spring artifacts.
@@ -428,9 +437,10 @@ ${modulesXml}
   <dependencyManagement>
     <dependencies>
       <!-- TEST -->
+${dmTestXml}
 
       <!-- PROD -->
-${dmXml}${springCoreDm}
+${dmProdXml}${springCoreDm}
     </dependencies>
   </dependencyManagement>
 ${parentDependencies}
@@ -661,8 +671,9 @@ serviceModules.each { svcMod ->
 
     def svcDesc = svcMod == 'service' ? 'Business logic for the application.'
                                       : "Business logic for the ${label} service area."
-    def domDesc = svcMod == 'service' ? 'Domain classes for the application.'
-                                      : "Domain classes for the ${label} service area."
+    // #4: domain-service modules describe the service tier (plus the area name when named).
+    def domDesc = svcMod == 'service' ? 'Domain classes for the service tier.'
+                                      : "Domain classes for the ${label} service tier."
 
     // Domain classes owned by this service area.
     writeFile(projectDir, "${domMod}/pom.xml",
@@ -672,11 +683,16 @@ serviceModules.each { svcMod ->
     srcTree(projectDir, domMod, pkgPath, [domPkg], [domPkg], domDesc)
     configClass(domMod, domPkg)
 
-    // Business logic, depending on its own service-area domain module.
+    // Business logic, depending on its own service-area domain module and (#2) the integration
+    // module(s) it consumes: a named service area takes the integration sharing its name, while the
+    // single default 'service' module takes every integration module.
+    def svcIntegrations = svcMod == 'service'
+        ? intImplMods
+        : integrations.findAll { it.name == label }.collect { "integration-${it.abbrev}-${it.name}" }
     writeFile(projectDir, "${svcMod}/pom.xml",
         modulePom(groupId, artifactId, version,
             svcMod, svcDesc,
-            ['common-domain', domMod]))
+            ['common-domain', domMod] + svcIntegrations))
     srcTree(projectDir, svcMod, pkgPath, [svcPkg], [svcPkg], svcDesc)
     configClass(svcMod, svcPkg)
 }
@@ -698,14 +714,21 @@ presentations.each { pType ->
         "Domain classes for the ${disp} presentation tier.")
     configClass(domMod, "domain/${pType}")
 
+    // #7: GraphQL presentation classes are resolvers, not request-handling controllers.
+    def implDesc = pType == 'graphql'
+        ? "Resolver classes for the ${disp} presentation tier."
+        : "Request-handling classes (controllers) for the ${disp} presentation tier."
+    def implPkgDesc = pType == 'graphql'
+        ? "Resolver classes for the ${disp} presentation tier."
+        : "Request-handling classes for the ${disp} presentation tier."
+    // #1: every presentation module depends on all service modules.
     writeFile(projectDir, "${implMod}/pom.xml",
         modulePom(groupId, artifactId, version,
-            implMod,
-            "Request-handling classes (controllers) for the ${disp} presentation tier.",
-            ['common-domain', domMod] + starterDeps(presentationStarter(pType))))
+            implMod, implDesc,
+            ['common-domain', domMod] + serviceModules + starterDeps(presentationStarter(pType))))
     srcTree(projectDir, implMod, pkgPath,
         ["presentation/${pType}"], ["presentation/${pType}"],
-        "Request-handling classes for the ${disp} presentation tier.")
+        implPkgDesc)
     configClass(implMod, "presentation/${pType}")
 }
 

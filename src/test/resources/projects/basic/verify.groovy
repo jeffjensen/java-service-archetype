@@ -109,7 +109,7 @@ assert foundModules == moduleOrder : "parent <modules> not sorted alphabetically
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
 def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
-assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.sort() == modules.sort() : "parent <dependencyManagement> must manage exactly the sibling modules"
 assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 6. Child module <parent> references parent/pom.xml ───────────────────────
@@ -259,6 +259,11 @@ check("app/src/main/java/${p}/app/config/Application.java")
 check("app/src/main/java/${p}/app/config/AppServletInitializer.java")
 assert parentPom.contains('<artifactId>spring-boot-starter-parent</artifactId>') : 'parent must inherit spring-boot-starter-parent'
 assert appPom.contains('<artifactId>spring-boot-starter-web</artifactId>')     : 'app must depend on spring-boot-starter-web'
+
+// #1: each presentation module depends on all service modules
+assert text('presentation-rest/pom.xml').contains('<artifactId>service</artifactId>') : '#1: presentation-rest must depend on service'
+// #2: the single default 'service' module depends on every integration module
+assert text('service/pom.xml').contains('<artifactId>integration-db-main</artifactId>') : '#2: default service must depend on integration-db-main'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

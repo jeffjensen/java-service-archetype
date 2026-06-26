@@ -41,7 +41,9 @@ _Depends on_: `common-domain`
 Business logic for a service area (see the `serviceAreas` prompt).
 +
 _Package_: `{base.package}.service` or `{base.package}.service.{name}` +
-_Depends on_: `common-domain`, its own `domain-service` / `domain-service-{name}` module
+_Depends on_: `common-domain`, its own `domain-service` / `domain-service-{name}` module, and the
+integration module(s) it consumes — a named area takes the integration sharing its name, while the
+single default `service` takes every integration module
 
 `domain-service` _or_ `domain-service-{name}`::
 Domain classes owned by a service area — one per `service` / `service-{name}` module.
@@ -103,7 +105,7 @@ Request-handling classes — controllers, resolvers, etc.
 (e.g. `presentation-rest`, `presentation-graphql`).
 +
 _Package_: `{base.package}.presentation.{type}` +
-_Depends on_: `common-domain`, `domain-{type}`
+_Depends on_: `common-domain`, `domain-{type}`, and all service modules
 
 == Parent POM
 
@@ -115,7 +117,9 @@ It contains:
 * `<parent>` — inherits `spring-boot-starter-parent` (4.1.0) via an empty `<relativePath/>`, supplying Spring dependency management and plugin defaults
 * `<packaging>pom</packaging>`
 * `<modules>` — all sibling modules referenced as `../module` relative paths, sorted alphabetically
-* `<dependencyManagement>` — all modules pinned to `${project.version}`, sorted alphabetically by `artifactId`
+* `<dependencyManagement>` — every module pinned to `${project.version}`, split into a TEST section
+  (`acceptance-tests` and `common-testing`, at `<scope>test</scope>`) and a PROD section (all other
+  modules, plus managed third-party dependencies such as `spring-core`)
 * Common properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding
 * `<pluginManagement>` — pinned versions for `maven-compiler-plugin`, `maven-failsafe-plugin`,
   `maven-jar-plugin` (with `skipIfEmpty=true`), `maven-surefire-plugin`,

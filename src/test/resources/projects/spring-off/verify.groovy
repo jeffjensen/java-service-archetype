@@ -64,7 +64,7 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : 'parent <
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
 def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
-assert dmModuleIds == modules.sort() : 'parent <dependencyManagement> must list exactly the sibling modules'
+assert dmModuleIds.sort() == modules.sort() : 'parent <dependencyManagement> must list exactly the sibling modules'
 
 // ── 4. No Spring entry-point classes and no @Configuration / .config packages ─
 

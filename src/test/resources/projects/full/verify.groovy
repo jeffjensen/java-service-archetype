@@ -78,7 +78,7 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : "parent <
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
 def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
-assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.sort() == modules.sort() : "parent <dependencyManagement> must manage exactly the sibling modules"
 assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 6. Child modules reference parent/pom.xml ────────────────────────────────
@@ -316,6 +316,35 @@ assert depPom.contains('<!-- TEST -->') : 'dependency list must carry a TEST sec
 assert depPom.contains('<!-- PROD -->') : 'dependency list must carry a PROD section header'
 assert depPom.indexOf('<!-- TEST -->') < depPom.indexOf('<!-- PROD -->')                          : 'TEST section must come before PROD'
 assert depPom.indexOf('<!-- PROD -->') < depPom.indexOf('<artifactId>common-domain</artifactId>') : 'compile-scope deps must sit under PROD'
+
+// ── This change set: #1 presentation→services, #2 service→integration, #4 / #5 / #7 ──
+
+// #1: every presentation module depends on all service modules
+['presentation-rest', 'presentation-graphql'].each { pres ->
+    ['service-orders', 'service-notifications'].each { svc ->
+        assert text("${pres}/pom.xml").contains("<artifactId>${svc}</artifactId>") : "#1: ${pres} must depend on ${svc}"
+    }
+}
+
+// #2: these named service areas share no name with any integration, so they take no integration dep
+['service-orders', 'service-notifications'].each { svc ->
+    assert !text("${svc}/pom.xml").contains('<artifactId>integration-') : "#2: ${svc} must not take a non-matching integration"
+}
+
+// #4: domain-service-* describe the service tier (with the area name), not "the application"
+assert text('domain-service-orders/pom.xml').contains('<description>Domain classes for the orders service tier.</description>') : '#4: domain-service-orders pom description'
+assert text("domain-service-orders/src/main/java/${p}/domain/service/orders/package-info.java").contains('Domain classes for the orders service tier.') : '#4: domain-service-orders package-info'
+
+// #5: acceptance-tests and common-testing are managed in dependencyManagement at test scope
+['acceptance-tests', 'common-testing'].each { m ->
+    assert dmBlock =~ /(?s)<artifactId>${aid}-${m}<\/artifactId>\s*<version>[^<]+<\/version>\s*<scope>test<\/scope>/ : "#5: ${m} must be managed at <scope>test</scope>"
+}
+
+// #7: GraphQL presentation uses resolver wording, not request-handling
+assert text('presentation-graphql/pom.xml').contains('<description>Resolver classes for the GraphQL presentation tier.</description>') : '#7: presentation-graphql pom description'
+assert text("presentation-graphql/src/main/java/${p}/presentation/graphql/package-info.java").contains('Resolver classes for the GraphQL presentation tier.') : '#7: presentation-graphql main package-info'
+assert text("presentation-graphql/src/test/java/${p}/presentation/graphql/package-info.java").contains('resolver classes for the GraphQL presentation tier.') : '#7: presentation-graphql test package-info'
+assert !text('presentation-graphql/pom.xml').contains('Request-handling') : '#7: presentation-graphql must not use request-handling wording'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

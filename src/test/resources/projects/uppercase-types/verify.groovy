@@ -73,7 +73,7 @@ assert moduleBlock.findAll(/<module>[^<]+<\/module>/) == moduleOrder : "parent <
 def dmBlock = (parentPom =~ /(?s)<dependencyManagement>.*?<\/dependencyManagement>/)[0]
 def dmIds = dmBlock.findAll(/<artifactId>[^<]+<\/artifactId>/).collect { it.replaceAll(/<\/?artifactId>/, '') }
 def dmModuleIds = dmIds.findAll { it.startsWith("${aid}-") }.collect { it.substring(aid.length() + 1) }
-assert dmModuleIds == modules.sort()        : "parent <dependencyManagement> not sorted alphabetically"
+assert dmModuleIds.sort() == modules.sort() : "parent <dependencyManagement> must manage exactly the sibling modules"
 assert dmModuleIds.size() == modules.size() : "parent <dependencyManagement> wrong entry count: expected ${modules.size()}, got ${dmModuleIds.size()}"
 
 // ── 4. Child modules reference parent/pom.xml ────────────────────────────────
