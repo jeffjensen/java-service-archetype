@@ -18,10 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/jdk-setup
-      - uses: actions/setup-java@v5
         with:
-          java-version: '21'
-          distribution: 'temurin'
           server-id: central-publish
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_TOKEN
