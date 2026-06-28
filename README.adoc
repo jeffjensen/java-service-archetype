@@ -22,7 +22,7 @@ See the https://jeffjensen.github.io/java-service-archetype/[project site] for t
 
 == CI / CD
 
-Three GitHub Actions workflows are included.
+Four GitHub Actions workflows are included.
 
 === Build any branch (`build-any-branch.yml`)
 
@@ -43,6 +43,22 @@ Required repository secrets:
 
 |`CENTRAL_USERNAME` |Maven Central portal username
 |`CENTRAL_TOKEN`    |Maven Central portal token
+|===
+
+=== Release (`release.yml`)
+
+Triggered when `maven-release-plugin` pushes a `v*` tag.
+Runs in a `release` environment and deploys a GPG-signed release to Maven Central via `./mvnw deploy -Prelease`.
+See the https://jeffjensen.github.io/java-service-archetype/releasing.html[Releasing] guide for the full procedure and one-time setup.
+
+Required repository secrets, in addition to `CENTRAL_USERNAME` and `CENTRAL_TOKEN` above:
+
+[cols="1,2"]
+|===
+|Secret |Description
+
+|`GPG_PRIVATE_KEY` |ASCII-armored GPG private key for artifact signing
+|`GPG_PASSPHRASE`   |Passphrase for the signing key
 |===
 
 === Publish site (`publish-docs.yml`)

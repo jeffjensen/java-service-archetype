@@ -3,42 +3,70 @@
 :toc-title: Contents
 :toclevels: 2
 
-Releases are published to Maven Central using the Maven Release Plugin.
-`release:perform` invokes `mvn deploy`, which the `central-publishing-maven-plugin` intercepts
-to upload, validate, and publish the artifact automatically.
+Releases are published to Maven Central from CI.
+You run one command locally to tag the release; pushing that tag triggers the
+`release.yml` workflow, which signs and deploys the artifact.
+Driven by the Maven Release Plugin and the `central-publishing-maven-plugin`
+(`autoPublish=true`, `waitUntil=published`).
 
 == Prerequisites
 
+One-time GitHub configuration (see <<github-config>>):
+
+* Repository secrets: `CENTRAL_USERNAME`, `CENTRAL_TOKEN`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
+* A `release` GitHub environment, optionally with a required reviewer to gate publishing
+
+For each release:
+
 * On the `main` branch, with a clean working tree — no uncommitted changes
-* All tests green: `./mvnw verify`
-* GPG key available in your local keyring for artifact signing
-* Maven settings with Central credentials (see <<settings-xml>>)
+* Network access — `release:prepare` runs `verify`, which builds a generated project for every integration test
+* `release.yml` must already be on `main` — a tag runs the workflow as it exists at the tagged commit
 
-[[settings-xml]]
-== `~/.m2/settings.xml`
+[[github-config]]
+== GitHub Configuration
 
-The deploy needs a `<server>` entry whose `<id>` matches `publishingServerId` in the POM (`central-publish`):
+The deploy runs in CI, so no local Maven `settings.xml` or GPG keyring is required —
+the credentials and signing key live in repository secrets.
 
-[source,xml]
+=== Secrets
+
+Add under repository Settings → Secrets and variables → Actions:
+
+[cols="1,2"]
+|===
+|Secret |Description
+
+|`CENTRAL_USERNAME` |Central Portal user-token name (also used by `deploy-snapshot.yml`)
+|`CENTRAL_TOKEN`    |Central Portal user-token password
+|`GPG_PRIVATE_KEY`  |ASCII-armored private signing key (the full `-----BEGIN PGP PRIVATE KEY BLOCK-----` block)
+|`GPG_PASSPHRASE`   |Passphrase for the signing key
+|===
+
+Obtain the Central credentials from https://central.sonatype.com[central.sonatype.com] under Account → Generate User Token.
+
+=== `release` environment
+
+`release.yml` runs in a `release` environment (Settings → Environments → New environment → `release`).
+Add yourself as a required reviewer to turn the tag-triggered run into a manual approval gate before anything publishes.
+
+=== Signing key
+
+Maven Central requires release artifacts to be GPG-signed, and the public key must be on a public keyserver.
+If you do not already have a published key:
+
+[source,bash]
 ----
-<settings>
-  <servers>
-    <server>
-      <id>central-publish</id>
-      <username>YOUR_CENTRAL_USERNAME</username>
-      <password>YOUR_CENTRAL_TOKEN</password>
-    </server>
-  </servers>
-</settings>
+gpg --full-generate-key                                  # RSA 4096, with a passphrase
+gpg --list-secret-keys --keyid-format=long               # note the key id
+gpg --keyserver keyserver.ubuntu.com --send-keys KEYID   # publish the public key
+gpg --armor --export-secret-keys KEYID                   # paste all output into GPG_PRIVATE_KEY
 ----
 
-Obtain credentials from https://central.sonatype.com[central.sonatype.com] under Account → Generate User Token.
-
-== Step 1 — Prepare
+== Step 1 — Prepare and Tag
 
 `release:prepare` validates the build, sets the release version, commits the POM change
 (including updating `project.build.outputTimestamp`), creates a git tag, increments to the
-next development version, and pushes all commits and the tag:
+next development version, and pushes all commits and the tag (`pushChanges` defaults to true):
 
 [source,bash]
 ----
@@ -67,7 +95,7 @@ To run non-interactively:
   -B
 ----
 
-If preparation fails for any reason, roll back cleanly:
+If preparation fails before it pushes, roll back cleanly:
 
 [source,bash]
 ----
@@ -75,41 +103,38 @@ If preparation fails for any reason, roll back cleanly:
 ----
 
 This reverses the release-version POM commit, resets the version back to the development snapshot, and removes the local tag.
-If `release:prepare` already pushed commits and the tag to the remote, delete the remote tag manually:
+
+== Step 2 — CI Signs and Deploys
+
+The pushed `v*` tag triggers the `release.yml` workflow.
+If you configured a required reviewer on the `release` environment, approve the run in the Actions tab.
+The workflow imports the signing key and Central credentials from the secrets, then runs:
+
+[source,bash]
+----
+./mvnw deploy -Prelease -DskipTests -Darchetype.test.skip=true
+----
+
+The `release` profile activates `maven-gpg-plugin` to sign the artifact, and the
+`central-publishing-maven-plugin` uploads the signed bundle, waits for validation, and publishes
+automatically. Expect this step to take a few minutes.
+
+Tests are not re-run — `release:prepare` already verified them.
+`-DskipTests` skips the unit tests and `-Darchetype.test.skip=true` skips the archetype integration tests
+(which `-DskipTests` does not cover).
+
+You do not run `release:perform` — CI performs the deploy.
+
+=== Aborting after the tag is pushed
+
+`release:prepare` pushes immediately, so once the tag is on the remote the approval gate is the stop point.
+Reject the pending `release` deployment in the Actions tab so nothing publishes, then delete the remote tag
+and revert the two release commits on `main`:
 
 [source,bash]
 ----
 git push --delete origin v1.0.0
 ----
-
-== Step 2 — Perform
-
-`release:perform` checks out the tagged commit into `target/checkout`, builds it with the
-`release` profile active (which enables GPG signing), and runs `mvn deploy`:
-
-[source,bash]
-----
-./mvnw release:perform
-----
-
-The `central-publishing-maven-plugin` uploads the signed bundle to Maven Central,
-waits for validation, and publishes automatically (`autoPublish=true`, `waitUntil=published`).
-Expect this step to take a few minutes.
-
-== GPG Signing
-
-Maven Central requires all release artifacts to be signed.
-The `release` profile (activated automatically by `release:perform` via `releaseProfiles=release`)
-runs `maven-gpg-plugin` during the `verify` phase.
-
-If your GPG key requires a passphrase and you are not using an agent, pass it on the command line:
-
-[source,bash]
-----
-./mvnw release:perform -Dgpg.passphrase=YOUR_PASSPHRASE
-----
-
-Using `gpg-agent` is the preferred approach — it avoids exposing the passphrase in shell history.
 
 == Reproducible Builds
 
@@ -122,9 +147,9 @@ byte-for-byte verification impossible.
 automatically before committing the release POM, so released artifacts carry the exact
 timestamp of the release commit.
 
-During development the property holds the initial project creation date
-(`2026-06-07T00:00:00Z`), ensuring that `./mvnw verify` is reproducible regardless of
-when the build runs.
+Between releases the property holds a fixed timestamp — the last release's instant, or the
+initial project creation date before the first release — ensuring that `./mvnw verify` is
+reproducible regardless of when the build runs.
 
 To verify build-plan reproducibility locally:
 
@@ -136,5 +161,5 @@ To verify build-plan reproducibility locally:
 == Step 3 — After the Release
 
 . Confirm the artifact appears on https://central.sonatype.com[Maven Central] (typically within minutes).
-. Update the `archetypeVersion` in the link:index.html[Quick Start], the link:usage.html[Usage] examples, and the `README.adoc` `archetype:generate` command to the released version.
 . Create a GitHub Release from the tag, summarising the changes.
+. `main` now carries the next `-SNAPSHOT`; update any docs or examples that reference a specific archetype version.
