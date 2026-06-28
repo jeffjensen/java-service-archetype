@@ -6,9 +6,16 @@ on:
     types: [completed]
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   MAVEN_COMMAND: ./mvnw
   MAVEN_CLI_COMMON: "-e -B"
+
+concurrency:
+  group: snapshot-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy-snapshot:
@@ -17,6 +24,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
       - uses: ./.github/actions/jdk-setup
         with:
           server-id: central-publish
