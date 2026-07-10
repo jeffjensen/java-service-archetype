@@ -1,9 +1,11 @@
 // ── Test: spring-off ──────────────────────────────────────────────────────────
-// integrations=database:users  serviceAreas=,  presentationTypes=rest  includeSpring=false
+// appName=Spring Off Test  integrations=database:users  serviceAreas=,  presentationTypes=rest
+// includeSpring=false
 // Covers: includeSpring=false omits ALL Spring artifacts (parent inheritance,
-//         @Configuration classes, spring-context, app starters, and the
-//         Application/AppServletInitializer classes) while still generating the
-//         full module tree, package-info files, and domain-service wiring.
+//         @Configuration classes, spring-context, app starters, datasource-proxy /
+//         spring-boot-admin-starter-client, and the Application/AppServletInitializer
+//         classes) while still generating the full module tree, package-info files,
+//         and domain-service wiring.
 
 def _testName = new File(basedir, 'project').isDirectory() ? basedir.name : 'unknown'
 def _projectSubdir = new File(basedir, 'project')
@@ -21,6 +23,7 @@ def check = { String rel ->
 // tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
 // generated project's real Maven build — run before this script — fails on any inconsistent reference.
 def aid = 'spring-off-test'
+def appName = 'Spring Off Test'
 def raw = { String rel ->
     new File(basedir, rel).text
 }
@@ -49,13 +52,18 @@ modules.each { m ->
 }
 
 // ── 3. parent/pom.xml: no Spring inheritance; sibling-only dependencyManagement ─
+// appName-derived <name>/<description> are unaffected by includeSpring
 
 def parentPom = raw('parent/pom.xml')
 assert parentPom.contains('<packaging>pom</packaging>') : 'parent must have pom packaging'
+assert parentPom.contains("<name>${appName} Parent</name>")                     : 'parent <name> must be "<appName> Parent"'
+assert parentPom.contains("<description>${appName}'s parent POM.</description>") : "parent <description> must be \"<appName>'s parent POM.\""
 assert !parentPom.contains('<parent>')                  : 'includeSpring=false: parent must not inherit a parent POM'
 assert !parentPom.contains('spring-boot')               : 'includeSpring=false: no spring-boot references in parent'
 assert !parentPom.contains('spring-core')               : 'includeSpring=false: no spring-core in parent dependencyManagement (#4)'
 assert !parentPom.contains('jspecify')                  : 'includeSpring=false: no jspecify in parent dependencies (#6)'
+assert !parentPom.contains('datasource-proxy')          : 'includeSpring=false: no datasource-proxy-spring-boot-starter anywhere in parent'
+assert !parentPom.contains('spring-boot-admin')         : 'includeSpring=false: no spring-boot-admin-starter-client anywhere in parent'
 
 def moduleOrder = modules.sort().collect { "<module>../${it}</module>" }
 def moduleBlock = parentPom.replaceAll(/(?s).*<modules>(.*?)<\/modules>.*/, '$1')
@@ -77,28 +85,50 @@ assert !new File(basedir, "service/src/main/java/${p}/service/config").exists() 
 assert !new File(basedir, "integration-db-users/src/main/java/${p}/integration/db/users/config").exists() : 'includeSpring=false: no integration .config package'
 assert !new File(basedir, "domain-service/src/main/java/${p}/domain/service/config").exists()      : 'includeSpring=false: no domain-service .config package'
 
+// no acceptance-test infrastructure (AT base classes, AT config, logback) when Spring is off
+assert !new File(basedir, "acceptance-tests/src/test/java/${p}/at/AppRestAcceptanceTestBase.java").exists() \
+    : 'includeSpring=false: no AppRestAcceptanceTestBase'
+assert !new File(basedir, "acceptance-tests/src/test/java/${p}/at/config").exists() \
+    : 'includeSpring=false: no acceptance-tests .config package (no AT configuration class)'
+assert !new File(basedir, 'acceptance-tests/src/test/resources/logback-spring.xml').exists() \
+    : 'includeSpring=false: no logback-spring.xml'
+assert !new File(basedir, "common-testing/src/main/java/${p}/common/testing/RestAcceptanceTestBase.java").exists() \
+    : 'includeSpring=false: no RestAcceptanceTestBase'
+
 // ── 5. No Spring dependencies anywhere ───────────────────────────────────────
 
 def appPom = text('app/pom.xml')
 assert !appPom.contains('spring-boot') : 'includeSpring=false: app must not reference spring-boot'
 modules.each { m ->
     assert !text("${m}/pom.xml").contains('org.springframework') : "includeSpring=false: ${m} must not reference org.springframework"
+    assert !text("${m}/pom.xml").contains('datasource-proxy')    : "includeSpring=false: ${m} must not reference datasource-proxy-spring-boot-starter"
 }
 // common-domain has no other dependencies, so without spring-context it has no <dependencies> block
 assert !text('common-domain/pom.xml').contains('<dependencies>') : 'includeSpring=false: common-domain must have no dependencies'
+// no domain module ever depends on common-testing, regardless of includeSpring
+assert !text('domain-service/pom.xml').contains('<artifactId>common-testing</artifactId>') : 'domain-service must not depend on common-testing'
+// service's common-testing dep (and domain-service's validation dep) are Spring-gated, so absent here
+assert !text('service/pom.xml').contains('<artifactId>common-testing</artifactId>')         : 'includeSpring=false: service must not depend on common-testing'
+// common-testing's own dependency on every domain module is unconditional (not Spring-gated)
+assert text('common-testing/pom.xml').contains('<artifactId>domain-db-users</artifactId>') : 'common-testing missing domain-db-users dep'
+assert text('common-testing/pom.xml').contains('<artifactId>domain-rest</artifactId>')     : 'common-testing missing domain-rest dep'
+assert text('common-testing/pom.xml').contains('<artifactId>domain-service</artifactId>')  : 'common-testing missing domain-service dep'
 
-// ── 6. Non-Spring features remain: package-info (both roots) + domain-service wiring ─
+// ── 6. Non-Spring features remain: package-info (main only) + domain-service wiring ─
 
 check("common-domain/src/main/java/${p}/common/domain/package-info.java")
-check("common-domain/src/test/java/${p}/common/domain/package-info.java")
 check("app/src/main/java/${p}/app/package-info.java")
-check("app/src/test/java/${p}/app/package-info.java")
 check("domain-service/src/main/java/${p}/domain/service/package-info.java")
-check("domain-service/src/test/java/${p}/domain/service/package-info.java")
+assert !new File(basedir, "common-domain/src/test/java/${p}/common/domain/package-info.java").exists() : 'common-domain must not have a test-side package-info.java'
+assert !new File(basedir, "app/src/test/java/${p}/app/package-info.java").exists()                       : 'app must not have a test-side package-info.java'
+assert !new File(basedir, "domain-service/src/test/java/${p}/domain/service/package-info.java").exists() : 'domain-service must not have a test-side package-info.java'
 assert text('service/pom.xml').contains('<artifactId>domain-service</artifactId>')               : 'service must still depend on its domain-service module'
 assert text('domain-service/pom.xml').contains('<artifactId>common-domain</artifactId>')         : 'domain-service must depend on common-domain'
 assert text('integration-db-users/pom.xml').contains('<artifactId>domain-db-users</artifactId>') : 'integration-db-users must depend on its domain module'
 assert text('presentation-rest/pom.xml').contains('<artifactId>domain-rest</artifactId>')        : 'presentation-rest must depend on domain-rest'
+assert text('domain-rest/pom.xml').contains('<artifactId>domain-service</artifactId>')           : 'domain-rest must depend on domain-service (the service domain deps) regardless of includeSpring'
+// acceptance-tests still gets the (Spring-independent) common-testing TEST dep
+assert text('acceptance-tests/pom.xml').contains('<artifactId>common-testing</artifactId>') : 'acceptance-tests must still depend on common-testing'
 
 // ── 7. src scaffolding + failsafe wiring unchanged ───────────────────────────
 

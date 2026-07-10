@@ -1,5 +1,6 @@
 // ── Test: multi-integration ───────────────────────────────────────────────────
-// integrations=database:users,rest:orders,jms:events  serviceAreas=,  presentationTypes=rest
+// appName=Multi Integration Test  integrations=database:users,rest:orders,jms:events
+// serviceAreas=,  presentationTypes=rest
 // Covers: multiple integration types, db abbreviation, non-db types as-is,
 //         integration domain-rest-orders vs presentation domain-rest (no collision)
 
@@ -20,6 +21,7 @@ def check = { String rel ->
 // tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
 // generated project's real Maven build — run before this script — fails on any inconsistent reference.
 def aid = 'multi-integration-test'
+def appName = 'Multi Integration Test'
 def raw = { String rel ->
     new File(basedir, rel).text
 }
@@ -67,6 +69,8 @@ modules.each { m ->
     assert parentPom.contains("<artifactId>${aid}-${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
 }
 assert parentPom.contains('<packaging>pom</packaging>') : "parent must have pom packaging"
+assert parentPom.contains("<name>${appName} Parent</name>")                     : 'parent <name> must be "<appName> Parent"'
+assert parentPom.contains("<description>${appName}'s parent POM.</description>") : "parent <description> must be \"<appName>'s parent POM.\""
 
 def moduleOrder = modules.sort().collect { "<module>../${it}</module>" }
 def moduleBlock = parentPom.replaceAll(/(?s).*<modules>(.*?)<\/modules>.*/, '$1')
@@ -90,35 +94,24 @@ modules.each { m ->
         : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
 }
 
-// ── 7. Source skeletons for each integration type ────────────────────────────
+// ── 7. Source skeletons for each integration type — package-info.java only under src/main/java ──
 
 def p = 'com/example/multiint'
 def pkg = p.replace('/', '.')
 [
     "common-domain/src/main/java/${p}/common/domain/package-info.java",
-    "common-domain/src/test/java/${p}/common/domain/package-info.java",
     "common-testing/src/main/java/${p}/common/testing/package-info.java",
     "domain-db-users/src/main/java/${p}/domain/db/users/package-info.java",
-    "domain-db-users/src/test/java/${p}/domain/db/users/package-info.java",
     "integration-db-users/src/main/java/${p}/integration/db/users/package-info.java",
-    "integration-db-users/src/test/java/${p}/integration/db/users/package-info.java",
     "domain-rest-orders/src/main/java/${p}/domain/rest/orders/package-info.java",
-    "domain-rest-orders/src/test/java/${p}/domain/rest/orders/package-info.java",
     "integration-rest-orders/src/main/java/${p}/integration/rest/orders/package-info.java",
-    "integration-rest-orders/src/test/java/${p}/integration/rest/orders/package-info.java",
     "domain-jms-events/src/main/java/${p}/domain/jms/events/package-info.java",
-    "domain-jms-events/src/test/java/${p}/domain/jms/events/package-info.java",
     "integration-jms-events/src/main/java/${p}/integration/jms/events/package-info.java",
-    "integration-jms-events/src/test/java/${p}/integration/jms/events/package-info.java",
     "domain-rest/src/main/java/${p}/domain/rest/package-info.java",
-    "domain-rest/src/test/java/${p}/domain/rest/package-info.java",
     "presentation-rest/src/main/java/${p}/presentation/rest/package-info.java",
-    "presentation-rest/src/test/java/${p}/presentation/rest/package-info.java",
     "service/src/main/java/${p}/service/package-info.java",
-    "service/src/test/java/${p}/service/package-info.java",
     "app/src/main/java/${p}/app/package-info.java",
-    "app/src/test/java/${p}/app/package-info.java",
-    "acceptance-tests/src/test/java/${p}/at/package-info.java",
+    "acceptance-tests/src/main/java/${p}/at/package-info.java",
 ].each { check(it) }
 
 assert text("common-domain/src/main/java/${p}/common/domain/package-info.java").contains("package ${pkg}.common.domain;")    : 'common-domain package-info.java has wrong package declaration'
@@ -126,9 +119,8 @@ assert text("common-testing/src/main/java/${p}/common/testing/package-info.java"
 assert text("domain-db-users/src/main/java/${p}/domain/db/users/package-info.java").contains("package ${pkg}.domain.db.users;") : 'domain-db-users package-info.java has wrong package declaration'
 assert text("service/src/main/java/${p}/service/package-info.java").contains("package ${pkg}.service;")                      : 'service package-info.java has wrong package declaration'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                  : 'app package-info.java has wrong package declaration'
-assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")       : 'acceptance-tests package-info.java has wrong package declaration'
-assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must have test Java package-info.java'
-assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must have main Java package-info.java'
+assert text("acceptance-tests/src/main/java/${p}/at/package-info.java").contains("package ${pkg}.at;")                       : 'acceptance-tests package-info.java has wrong package declaration'
+assert !new File(basedir, "acceptance-tests/src/test/java/${p}/at/package-info.java").exists() : 'acceptance-tests must not have a test-side package-info.java'
 
 // ── 8. Integration module dependencies ───────────────────────────────────────
 
@@ -140,7 +132,13 @@ assert text('domain-db-users/pom.xml').contains('<artifactId>common-domain</arti
 assert text('domain-rest-orders/pom.xml').contains('<artifactId>common-domain</artifactId>') : 'domain-rest-orders missing common-domain dep'
 assert text('domain-jms-events/pom.xml').contains('<artifactId>common-domain</artifactId>')  : 'domain-jms-events missing common-domain dep'
 assert text('domain-rest/pom.xml').contains('<artifactId>common-domain</artifactId>')        : 'domain-rest (presentation) missing common-domain dep'
+assert text('domain-rest/pom.xml').contains('<artifactId>domain-service</artifactId>')       : 'domain-rest (presentation) missing domain-service dep (the service domain deps)'
 assert text('service/pom.xml').contains('<artifactId>common-domain</artifactId>')            : 'service missing common-domain dep'
+
+// only the database integration gets the SQL logging dependency
+assert text('integration-db-users/pom.xml').contains('<artifactId>datasource-proxy-spring-boot-starter</artifactId>')      : 'integration-db-users missing datasource-proxy dep'
+assert !text('integration-rest-orders/pom.xml').contains('<artifactId>datasource-proxy-spring-boot-starter</artifactId>') : 'integration-rest-orders must not get the datasource-proxy dep'
+assert !text('integration-jms-events/pom.xml').contains('<artifactId>datasource-proxy-spring-boot-starter</artifactId>')  : 'integration-jms-events must not get the datasource-proxy dep'
 
 // rest integration is a client (spring-boot-starter-restclient), not the servlet web server;
 // the rest presentation is the server (spring-boot-starter-web)
@@ -160,6 +158,7 @@ def appPom = text('app/pom.xml')
 }
 assert !appPom.contains('<artifactId>acceptance-tests</artifactId>') : 'app must not depend on acceptance-tests'
 assert !appPom.contains('<artifactId>common-testing</artifactId>')   : 'app must not depend on common-testing'
+assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') : 'app must depend on spring-boot-starter-data-jpa (database integration present)'
 
 def atPom = text('acceptance-tests/pom.xml')
 ['app', 'common-domain', 'domain-db-users', 'domain-jms-events',
@@ -168,6 +167,8 @@ def atPom = text('acceptance-tests/pom.xml')
 }
 assert !atPom.contains('<artifactId>integration-db-users</artifactId>')    : 'acceptance-tests must not include integration-db-users'
 assert !atPom.contains('<artifactId>integration-rest-orders</artifactId>') : 'acceptance-tests must not include integration-rest-orders'
+assert atPom.contains('<artifactId>common-testing</artifactId>')                       : 'acceptance-tests missing common-testing TEST dep'
+assert atPom.contains('<artifactId>datasource-proxy-spring-boot-starter</artifactId>') : 'acceptance-tests missing datasource-proxy dep'
 
 // ── src directory scaffolding — all four dirs present in every module ─────────
 

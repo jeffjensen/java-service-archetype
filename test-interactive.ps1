@@ -45,12 +45,12 @@ $OutDir      = Join-Path $env:TEMP "archetype-test-$(Get-Random)"
 $AnswersFile = Join-Path $env:TEMP "archetype-answers-$(Get-Random).txt"
 
 try {
-    # ── 1. Install ─────────────────────────────────────────────────────────────
+    # -- 1. Install -------------------------------------------------------------
     Write-Host "==> Installing archetype to local repo..."
     Invoke-Native "mvn install" { & "$ScriptDir\mvnw.cmd" -f "$ScriptDir\pom.xml" install -q }
 
-    # ── Read the archetype version straight from the project POM, so this script
-    #    needs no maintenance when the project version changes ──────────────────
+    # -- Read the archetype version straight from the project POM, so this script
+    #    needs no maintenance when the project version changes ------------------
     # Use cmd /c with a single command string: PowerShell 5.1 mangles arguments
     # like "-Dexpression=project.version" when passing them to the mvnw.cmd batch
     # file, so let cmd.exe parse the line (same pattern as the generate step).
@@ -61,7 +61,7 @@ try {
     $ArchetypeVersion = "$ArchetypeVersion".Trim()
     Write-Host "==> Using archetype version: $ArchetypeVersion"
 
-    # ── 2. Write answers to a temp file ───────────────────────────────────────
+    # -- 2. Write answers to a temp file ---------------------------------------
     # Answers fed to each Maven prompt, in the exact order maven-archetype-plugin
     # 3.4.x prompts. Required properties WITHOUT a non-empty default are prompted
     # first, in archetype-metadata.xml order, THEN groupId / artifactId / package.
@@ -69,12 +69,14 @@ try {
     # line here: version (1.0.0-SNAPSHOT), serviceAreas (",") and presentationTypes
     # (rest). The "," default makes serviceAreas resolve to a single "service" module.
     #
+    #   appName       -> My Service
     #   integrations  -> database:main
     #   groupId       -> com.example
     #   artifactId    -> my-service
     #   package       -> (Enter: accept default derived from groupId)
     #   confirm       -> Y
     $answers = @(
+        "My Service",
         "database:main",
         "com.example",
         "my-service",
@@ -86,7 +88,7 @@ try {
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($AnswersFile, ($answers -join "`n") + "`n", $utf8NoBom)
 
-    # ── 3. Generate ────────────────────────────────────────────────────────────
+    # -- 3. Generate ------------------------------------------------------------
     New-Item -ItemType Directory -Path $OutDir | Out-Null
     Write-Host "==> Generating project in $OutDir..."
 
@@ -94,7 +96,7 @@ try {
         cmd /c "cd /d `"$OutDir`" && mvn archetype:generate --no-transfer-progress -DarchetypeGroupId=$ArchetypeGroupId -DarchetypeArtifactId=$ArchetypeArtifactId -DarchetypeVersion=$ArchetypeVersion < `"$AnswersFile`""
     }
 
-    # ── 4. Show generated layout ───────────────────────────────────────────────
+    # -- 4. Show generated layout -----------------------------------------------
     Write-Host ""
     Write-Host "==> Generated project layout:"
     $projectDir = Join-Path $OutDir "my-service"
@@ -102,7 +104,7 @@ try {
         Sort-Object FullName |
         ForEach-Object { "  " + $_.FullName.Replace($OutDir + "\", "") }
 
-    # ── 5. Optionally verify the generated project compiles and tests pass ─────
+    # -- 5. Optionally verify the generated project compiles and tests pass -----
     if ($Verify) {
         Write-Host ""
         Write-Host "==> Running mvn verify on generated project..."

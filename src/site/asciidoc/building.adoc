@@ -44,7 +44,8 @@ Each test is a directory containing three files:
 
 `archetype.properties`::
 Property values passed to the archetype at generation time — the Maven coordinates plus the
-three archetype-specific properties (`integrations`, `serviceAreas`, `presentationTypes`).
+five archetype-specific properties (`appName`, `integrations`, `serviceAreas`, `presentationTypes`,
+`includeSpring`).
 
 `goal.txt`::
 The Maven goal to run against the generated project after generation.

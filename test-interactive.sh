@@ -50,12 +50,14 @@ cd "$OUT_DIR"
 # line here: version (1.0.0-SNAPSHOT), serviceAreas (",") and presentationTypes
 # (rest). The "," default makes serviceAreas resolve to a single "service" module.
 #
+#   appName       → My Service
 #   integrations  → database:main
 #   groupId       → com.example
 #   artifactId    → my-service
 #   package       → (Enter: accept default derived from groupId)
 #   confirm       → Y
 printf '%s\n' \
+  "My Service" \
   "database:main" \
   "com.example" \
   "my-service" \
