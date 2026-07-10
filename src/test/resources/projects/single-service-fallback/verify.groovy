@@ -1,7 +1,7 @@
 // ── Test: single-service-fallback ────────────────────────────────────────────
-// integrations=database:main  serviceAreas=,  presentationTypes=graphql
+// appName=Fallback Test  integrations=database:main  serviceAreas=,  presentationTypes=graphql
 // Covers: effectively empty serviceAreas (comma-only) → falls back to a single plain
-//         "service" module; graphql as the sole presentation type
+//         "service" module; graphql as the sole presentation type (no rest at all)
 
 def _testName = new File(basedir, 'project').isDirectory() ? basedir.name : 'unknown'
 def _projectSubdir = new File(basedir, 'project')
@@ -20,6 +20,7 @@ def check = { String rel ->
 // tags; the prefix is verified explicitly via raw() (module's own artifactId + parent DM), and the
 // generated project's real Maven build — run before this script — fails on any inconsistent reference.
 def aid = 'fallback-test'
+def appName = 'Fallback Test'
 def raw = { String rel ->
     new File(basedir, rel).text
 }
@@ -65,6 +66,8 @@ modules.each { m ->
     assert parentPom.contains("<artifactId>${aid}-${m}</artifactId>") : "parent <dependencyManagement> missing: $m"
 }
 assert parentPom.contains('<packaging>pom</packaging>') : "parent must have pom packaging"
+assert parentPom.contains("<name>${appName} Parent</name>")                     : 'parent <name> must be "<appName> Parent"'
+assert parentPom.contains("<description>${appName}'s parent POM.</description>") : "parent <description> must be \"<appName>'s parent POM.\""
 
 def moduleOrder = modules.sort().collect { "<module>../${it}</module>" }
 def moduleBlock = parentPom.replaceAll(/(?s).*<modules>(.*?)<\/modules>.*/, '$1')
@@ -88,27 +91,20 @@ modules.each { m ->
         : "${m}/pom.xml must declare its own artifactId as '${aid}-${m}'"
 }
 
-// ── 7. Source skeletons ───────────────────────────────────────────────────────
+// ── 7. Source skeletons — package-info.java only under src/main/java ────────
 
 def p = 'com/example/fallback'
 def pkg = p.replace('/', '.')
 [
     "common-domain/src/main/java/${p}/common/domain/package-info.java",
-    "common-domain/src/test/java/${p}/common/domain/package-info.java",
     "common-testing/src/main/java/${p}/common/testing/package-info.java",
     "domain-db-main/src/main/java/${p}/domain/db/main/package-info.java",
-    "domain-db-main/src/test/java/${p}/domain/db/main/package-info.java",
     "integration-db-main/src/main/java/${p}/integration/db/main/package-info.java",
-    "integration-db-main/src/test/java/${p}/integration/db/main/package-info.java",
     "domain-graphql/src/main/java/${p}/domain/graphql/package-info.java",
-    "domain-graphql/src/test/java/${p}/domain/graphql/package-info.java",
     "presentation-graphql/src/main/java/${p}/presentation/graphql/package-info.java",
-    "presentation-graphql/src/test/java/${p}/presentation/graphql/package-info.java",
     "service/src/main/java/${p}/service/package-info.java",
-    "service/src/test/java/${p}/service/package-info.java",
     "app/src/main/java/${p}/app/package-info.java",
-    "app/src/test/java/${p}/app/package-info.java",
-    "acceptance-tests/src/test/java/${p}/at/package-info.java",
+    "acceptance-tests/src/main/java/${p}/at/package-info.java",
 ].each { check(it) }
 
 assert text("common-domain/src/main/java/${p}/common/domain/package-info.java").contains("package ${pkg}.common.domain;")    : 'common-domain package-info.java has wrong package declaration'
@@ -116,15 +112,21 @@ assert text("common-testing/src/main/java/${p}/common/testing/package-info.java"
 assert text("presentation-graphql/src/main/java/${p}/presentation/graphql/package-info.java").contains("package ${pkg}.presentation.graphql;") : 'presentation-graphql package-info.java has wrong package declaration'
 assert text("service/src/main/java/${p}/service/package-info.java").contains("package ${pkg}.service;")                      : 'service package-info.java has wrong package declaration'
 assert text("app/src/main/java/${p}/app/package-info.java").contains("package ${pkg}.app;")                                  : 'app package-info.java has wrong package declaration'
-assert text("acceptance-tests/src/test/java/${p}/at/package-info.java").contains("package ${pkg}.at;")       : 'acceptance-tests package-info.java has wrong package declaration'
-assert new File(basedir, "common-testing/src/test/java/${p}/common/testing/package-info.java").exists()                     : 'common-testing must have test Java package-info.java'
-assert new File(basedir, "acceptance-tests/src/main/java/${p}/at/package-info.java").exists()                       : 'acceptance-tests must have main Java package-info.java'
+assert text("acceptance-tests/src/main/java/${p}/at/package-info.java").contains("package ${pkg}.at;")                       : 'acceptance-tests package-info.java has wrong package declaration'
+assert !new File(basedir, "acceptance-tests/src/test/java/${p}/at/package-info.java").exists() : 'acceptance-tests must not have a test-side package-info.java'
 
 // ── 8. common-domain wiring for domain and service modules ───────────────────
 
 assert text('domain-db-main/pom.xml').contains('<artifactId>common-domain</artifactId>')  : 'domain-db-main missing common-domain dep'
 assert text('domain-graphql/pom.xml').contains('<artifactId>common-domain</artifactId>')  : 'domain-graphql missing common-domain dep'
+assert text('domain-graphql/pom.xml').contains('<artifactId>domain-service</artifactId>') : 'domain-graphql missing domain-service dep (the service domain deps)'
 assert text('service/pom.xml').contains('<artifactId>common-domain</artifactId>')         : 'service missing common-domain dep'
+assert text('service/pom.xml').contains('<artifactId>common-testing</artifactId>')        : 'service missing common-testing TEST dep'
+assert !text('domain-service/pom.xml').contains('<artifactId>common-testing</artifactId>')                : 'domain-service must not depend on common-testing (no domain module does)'
+assert text('domain-service/pom.xml').contains('<artifactId>spring-boot-starter-validation</artifactId>') : 'domain-service missing spring-boot-starter-validation dep'
+assert text('common-testing/pom.xml').contains('<artifactId>domain-db-main</artifactId>') : 'common-testing missing integration domain dep'
+assert text('common-testing/pom.xml').contains('<artifactId>domain-service</artifactId>') : 'common-testing must depend on domain-service'
+assert text('common-testing/pom.xml').contains('<artifactId>domain-graphql</artifactId>') : 'common-testing must depend on domain-graphql'
 
 // ── 9. Dependency wiring ─────────────────────────────────────────────────────
 
@@ -136,11 +138,15 @@ def appPom = text('app/pom.xml')
  'integration-db-main', 'presentation-graphql', 'service'].each { dep ->
     assert appPom.contains("<artifactId>${dep}</artifactId>") : "app missing dep: $dep"
 }
+assert appPom.contains('<artifactId>spring-boot-starter-data-jpa</artifactId>') : 'app must depend on spring-boot-starter-data-jpa (database integration present)'
 
 def atPom = text('acceptance-tests/pom.xml')
 ['app', 'common-domain', 'domain-db-main', 'domain-graphql'].each { dep ->
     assert atPom.contains("<artifactId>${dep}</artifactId>") : "acceptance-tests missing dep: $dep"
 }
+assert atPom.contains('<artifactId>common-testing</artifactId>')                       : 'acceptance-tests missing common-testing TEST dep'
+assert atPom.contains('<artifactId>spring-graphql-test</artifactId>')                  : 'acceptance-tests missing spring-graphql-test dep (graphql presentation present)'
+assert atPom.contains('<artifactId>datasource-proxy-spring-boot-starter</artifactId>') : 'acceptance-tests missing datasource-proxy dep'
 
 // ── src directory scaffolding — all four dirs present in every module ─────────
 
@@ -159,6 +165,19 @@ modules.findAll { it.startsWith('integration-') }.each { m ->
     assert text("${m}/pom.xml").contains('<artifactId>maven-failsafe-plugin</artifactId>') \
         : "${m} must configure maven-failsafe-plugin"
 }
+
+// ── Acceptance-test infrastructure (GraphQL only — no rest presentation) ─────
+
+check("acceptance-tests/src/test/java/${p}/at/AppGraphQlAcceptanceTestBase.java")
+def appGraphQlAt = text("acceptance-tests/src/test/java/${p}/at/AppGraphQlAcceptanceTestBase.java")
+assert appGraphQlAt.contains('extends GraphQlAcceptanceTestBase') : 'AppGraphQlAcceptanceTestBase must extend GraphQlAcceptanceTestBase'
+assert appGraphQlAt.contains('@EnableAutoConfiguration(exclude = { DataSourceAutoConfiguration.class, XADataSourceAutoConfiguration.class })') \
+    : 'AppGraphQlAcceptanceTestBase must exclude DataSourceAutoConfiguration/XADataSourceAutoConfiguration (database integration present)'
+check("common-testing/src/main/java/${p}/common/testing/GraphQlAcceptanceTestBase.java")
+assert !new File(basedir, "acceptance-tests/src/test/java/${p}/at/AppRestAcceptanceTestBase.java").exists() \
+    : 'AppRestAcceptanceTestBase must not be generated (no rest presentation)'
+assert !new File(basedir, "common-testing/src/main/java/${p}/common/testing/RestAcceptanceTestBase.java").exists() \
+    : 'RestAcceptanceTestBase must not be generated (no rest presentation)'
 
 _buildLog.append("\n=== PASSED ===\n")
 true

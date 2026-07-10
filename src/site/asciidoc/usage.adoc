@@ -15,7 +15,8 @@ mvn archetype:generate \
 
 Replace `VERSION` with the archetype release you want to use.
 
-Maven first prompts for the standard Maven coordinates:
+Maven prompts for `appName` and `integrations` first — the two archetype-specific properties
+with no default — then the standard Maven coordinates:
 
 [cols="1,2"]
 |===
@@ -27,8 +28,31 @@ Maven first prompts for the standard Maven coordinates:
 |`package`    |Base Java package (e.g. `com.example.myservice`)
 |===
 
-It then prompts for the three archetype-specific properties below.
+`serviceAreas`, `presentationTypes`, and `includeSpring` also have defaults, so none of them
+are prompted interactively; override any of them with a `-D` flag, as shown in the full
+command line example below.
+
+All five archetype-specific properties are documented below, in prompt / declaration order:
+`appName`, `integrations`, `serviceAreas`, `presentationTypes`, `includeSpring`.
 The generated project is created in `./{artifactId}/` relative to the current directory.
+
+== `appName`
+
+Brief, human-readable application name: capitalized words separated by spaces.
+
+[source]
+----
+Order Service
+----
+
+`appName` drives generated content in three ways:
+
+* Class names remove the spaces, e.g. `OrderService`.
+* Generated property values remove the spaces and lowercase everything, e.g. `orderservice`
+  (used for `spring.application.name`).
+* Prose (POM `<name>`/`<description>`, Javadoc) uses it unmodified, e.g. "Order Service".
+
+No default — every project needs its own name.
 
 == `integrations`
 
@@ -78,6 +102,26 @@ Supported types include `rest`, `graphql`, `soap`, `grpc`, and any other label y
 
 Each type produces a `domain-{type}` module and a `presentation-{type}` module.
 
+== `includeSpring` (default: `true`)
+
+Whether to generate the Spring Boot wiring.
+
+[source]
+----
+true
+----
+
+* `true` (default): every app-composed module gets a `@Configuration` class plus the Spring Boot
+  starter suited to its role, the parent inherits `spring-boot-starter-parent`, and `app` gets the
+  `Application` class — always a monitorable web service (core starter, webmvc, actuator, Spring
+  Boot Admin client, `AppServletInitializer`) regardless of `presentationTypes` — plus
+  `spring-boot-starter-data-jpa` and `@EnableTransactionManagement` when a `database` integration
+  is present.
+* `false`: omit all Spring artifacts (configs, classes, and pom items).
+
+Not prompted interactively (non-empty default); override with `-DincludeSpring=false` on the
+command line to omit Spring entirely.
+
 == Examples
 
 === Minimal project
@@ -86,12 +130,13 @@ Each type produces a `domain-{type}` module and a `presentation-{type}` module.
 |===
 |Property |Value
 
+|`appName`           |`My Service`
 |`integrations`      |(blank)
 |`serviceAreas`      |(blank)
 |`presentationTypes` |(blank)
 |===
 
-Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `service`.
+Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `domain-service`, `service`.
 
 === Typical single-service REST API backed by a database
 
@@ -99,6 +144,7 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`, `service
 |===
 |Property |Value
 
+|`appName`           |`My Service`
 |`integrations`      |`database:users`
 |`serviceAreas`      |(blank)
 |`presentationTypes` |`rest`
@@ -114,6 +160,7 @@ Produces: `acceptance-tests`, `app`, `common-domain`, `common-testing`,
 |===
 |Property |Value
 
+|`appName`           |`My Service`
 |`integrations`      |`database:users,rest:orders,graphql:catalog`
 |`serviceAreas`      |`orders,inventory`
 |`presentationTypes` |`rest,graphql`
@@ -142,6 +189,7 @@ mvn archetype:generate -B \
   -DartifactId=my-service \
   -Dversion=1.0.0-SNAPSHOT \
   -Dpackage=com.example.myservice \
+  -DappName="My Service" \
   -Dintegrations=database:users,rest:orders,graphql:catalog \
   -DserviceAreas=orders,inventory \
   -DpresentationTypes=rest,graphql

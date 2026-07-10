@@ -22,8 +22,9 @@ mvn archetype:generate \
 
 Replace `VERSION` with the archetype release you want to use.
 
-Maven prompts for standard coordinates (`groupId`, `artifactId`, `version`, `package`)
-followed by three archetype-specific properties.
+Maven prompts for `appName` and `integrations` first (the two required properties with no
+default), then the standard coordinates (`groupId`, `artifactId`, `package`), then confirms.
+`serviceAreas`, `presentationTypes`, and `includeSpring` have defaults and are not prompted interactively.
 See link:usage.html[Usage] for the full prompts reference.
 
 == Example Output
@@ -50,6 +51,8 @@ my-service/
 ----
 
 `parent/` is a sibling directory — there is no `pom.xml` at the project root.
-Each module contains a full `src/` scaffold and a `package-info.java` in every leaf package.
+Each module contains a full `src/` scaffold and a `package-info.java` in every `src/main/java`
+leaf package (never under `src/test/java`, since Java rejects two package-info.java files
+compiled for the same package).
 
 See link:modules.html[Modules] for a description of each module, its dependencies, and how to build.

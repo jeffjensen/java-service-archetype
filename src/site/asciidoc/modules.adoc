@@ -5,12 +5,17 @@
 
 Every module contains a full `src/` scaffold
 (`src/main/java`, `src/main/resources`, `src/test/java`, `src/test/resources`)
-with a `package-info.java` in each module's primary leaf package under both
-`src/main/java` and `src/test/java`.
+with a `package-info.java` in each module's primary leaf package under
+`src/main/java` only — never `src/test/java`, since Java rejects two
+`package-info.java` files compiled for the same package. (`acceptance-tests` is the
+exception worth calling out: its real test content — the `*AT` classes — lives under
+`src/test/java`, but its lone package-info, under `src/main/java`, still describes
+"Functional acceptance tests for the application.")
 
 Every module that the `app` composes also carries a Spring `@Configuration` class in a
-`.config` sub-package; the `app` module's `Application` class `@Import`s them all so the
-whole tree assembles into a single Spring context.
+`.config` sub-package; the `app` module's `Application` class `@Import`s them all (each
+referenced by simple name via its own import statement) so the whole tree assembles into
+a single Spring context.
 
 == Module Naming
 
@@ -21,6 +26,38 @@ module's `artifactId` is `my-service-common-domain`, and the aggregator/BOM unde
 is `my-service-parent`. Every module inherits its `groupId` and `version` from `parent/`.
 This prefix applies to `artifactId`s only — the directory names and Java package names listed
 below are unaffected.
+
+Several modules also carry a Maven `<name>`/`<description>` derived from the `appName` prompt
+(see <<appname-naming>>).
+
+[[appname-naming]]
+== appName-Derived Naming
+
+`appName` (e.g. `Order Service`) drives the `<name>`/`<description>` of these modules. The
+area name is folded into named service areas' `service-{name}`/`domain-service-{name}`
+naming (trailing for `<name>`, mid-sentence for prose); other modules use `appName` as-is.
+
+[cols="1,2,2"]
+|===
+|Module |`<name>` |`<description>`
+
+|`parent/`               |`${appName} Parent`             |`${appName}'s parent POM.`
+|`common-testing`        |`${appName} Common Testing`      |`${appName}'s common testing.`
+|`domain-{type}` (REST)  |`${appName} Domain REST`         |`${appName}'s REST presentation tier domain classes.`
+|`domain-{type}` (GraphQL) |`${appName} Domain GraphQL`    |`${appName}'s GraphQL presentation tier domain classes.`
+|`presentation-graphql`  |`${appName} Presentation GraphQL` |`${appName}'s GraphQL presentation tier.`
+|`domain-service[-{name}]` |`${appName} Domain Service[ {Area}]` |`${appName}'s[ {area}] service tier domain classes.`
+|`service[-{name}]`      |`${appName} Service[ {Area}]`    |`${appName}'s[ {area}] service tier (business logic).`
+|`app`                   |`${appName} App`                 |`${appName}'s application configuration including building its deployment assembly.`
+|`acceptance-tests`      |`${appName} Acceptance Tests`    |`${appName}'s acceptance tests.`
+|===
+
+`common-domain`, `presentation-rest`, and the per-integration modules (`domain-{type}-{name}`,
+`integration-{type}-{name}`) have no dedicated `appName`-derived `<name>`/description yet and
+keep their existing generic description text.
+
+`spring.application.name` in `app`'s `application.properties` uses `appName`'s generated-property
+form (spaces removed, lowercased), e.g. `orderservice`.
 
 == Fixed Modules
 
@@ -35,7 +72,16 @@ _Package_: `{base.package}.common.domain`
 Shared test infrastructure.
 +
 _Package_: `{base.package}.common.testing` +
-_Depends on_: `common-domain`
+_Depends on_: `common-domain` and every other domain module (`domain-{type}-{name}`,
+`domain-service`/`domain-service-{name}`, `domain-{type}` presentation domain modules).
+No domain module depends back on `common-testing` — only `service`/`service-{name}` does — so
+this stays acyclic. +
+_Spring (includeSpring=true)_: `spring-boot-starter-test` at compile scope; additionally
+`spring-boot-starter-graphql-test` at compile scope when a `graphql` presentation is present.
+Carries `RestAcceptanceTestBase` (when a `rest` presentation is present) and/or
+`GraphQlAcceptanceTestBase` (when a `graphql` presentation is present) — shared
+`@SpringBootTest(webEnvironment = RANDOM_PORT)` base classes that `acceptance-tests`'
+`AppRestAcceptanceTestBase`/`AppGraphQlAcceptanceTestBase` extend.
 
 `service` _or_ `service-{name}`::
 Business logic for a service area (see the `serviceAreas` prompt).
@@ -43,20 +89,28 @@ Business logic for a service area (see the `serviceAreas` prompt).
 _Package_: `{base.package}.service` or `{base.package}.service.{name}` +
 _Depends on_: `common-domain`, its own `domain-service` / `domain-service-{name}` module, and the
 integration module(s) it consumes — a named area takes the integration sharing its name, while the
-single default `service` takes every integration module
+single default `service` takes every integration module; if `includeSpring=true`, also
+`common-testing` (test scope)
 
 `domain-service` _or_ `domain-service-{name}`::
 Domain classes owned by a service area — one per `service` / `service-{name}` module.
 +
 _Package_: `{base.package}.domain.service` or `{base.package}.domain.service.{name}` +
-_Depends on_: `common-domain`
+_Depends on_: `common-domain`; if `includeSpring=true`, also `spring-boot-starter-validation`
+(no domain module depends on `common-testing`)
 
 `app`::
-Application assembly — produces the runnable artifact (e.g. Spring Boot über-jar).
-Contains the Spring Boot `Application` (`@SpringBootApplication`) class in
-`{base.package}.app.config`, and adds the role starters its composition calls for — a `rest`
-presentation adds `spring-boot-starter-web` and an `AppServletInitializer` (WAR deployment)
-class; a `database` integration adds `spring-boot-starter-data-jpa` and `@EnableTransactionManagement`.
+Application assembly — produces the runnable artifact (e.g. Spring Boot über-jar). If
+`includeSpring=true`, `app` is always a monitorable web service regardless of
+`presentationTypes` — it adds the core `spring-boot-starter`, `spring-boot-starter-webmvc`,
+`spring-boot-starter-actuator`, and `spring-boot-admin-starter-client` (actuator needs a web
+server to expose its endpoints), and always generates an `AppServletInitializer` (WAR
+deployment) class; a `database` integration additionally adds `spring-boot-starter-data-jpa`
+and `@EnableTransactionManagement`. Contains the Spring Boot `Application`
+(`@SpringBootApplication`) class in `{base.package}.app.config`. Also creates
+`application.properties` (actuator, Spring Boot Admin registration, logging defaults, plus JPA
+and SQL logging when a `database` integration is present) and six empty per-environment files
+(`application-{ci,dev,local,prod,qa,uat}.properties`) in `src/main/resources`.
 +
 _Package_: `{base.package}.app`, `{base.package}.app.config` +
 _Depends on_: all non-test modules (`common-domain`, all domain and integration modules,
@@ -68,8 +122,20 @@ Functional acceptance tests that exercise the application from the outside.
 _Package_: `{base.package}.at` +
 _Depends on_: `app`, `common-domain`, all `domain-{type}-{name}` integration domain modules,
 all `domain-service` / `domain-service-{name}` service-area domain modules,
-all `domain-{type}` presentation domain modules +
-_Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
+all `domain-{type}` presentation domain modules (all labeled "this app" in the pom); also
+`common-testing` (test scope) unconditionally, and — if `includeSpring=true` and a `database`
+integration is present — `datasource-proxy-spring-boot-starter` (SQL logging), plus
+`spring-graphql-test` (test scope) when a `graphql` presentation is present +
+_Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals) +
+_Spring (includeSpring=true)_: generates `{appNameClass}AcceptanceTestConfiguration`
+(package `{base.package}.at.config`) and `src/test/resources/logback-spring.xml`; generates
+`AppRestAcceptanceTestBase` (package `{base.package}.at`, extends `common-testing`'s
+`RestAcceptanceTestBase`) when a `rest` presentation is present, and/or
+`AppGraphQlAcceptanceTestBase` (extends `GraphQlAcceptanceTestBase`) when a `graphql`
+presentation is present — both `@ContextConfiguration`'d with the AT configuration class plus
+every generated module's `@Configuration` class (reachable transitively via the `app`
+dependency), and excluding `DataSourceAutoConfiguration`/`XADataSourceAutoConfiguration` only
+when a `database` integration is present.
 
 == Integration Modules
 
@@ -87,7 +153,8 @@ Integration implementation classes — DAOs, Spring Data JPA repositories, REST 
 (e.g. `integration-db-users`, `integration-rest-orders`).
 +
 _Package_: `{base.package}.integration.{type}.{name}` +
-_Depends on_: `common-domain`, `domain-{type}-{name}` +
+_Depends on_: `common-domain`, `domain-{type}-{name}`; if `includeSpring=true` and the type
+is `database`, also `datasource-proxy-spring-boot-starter` (SQL logging) +
 _Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
 
 == Presentation Modules
@@ -95,10 +162,12 @@ _Plugin_: `maven-failsafe-plugin` (`integration-test` + `verify` goals)
 Generated per type in the `presentationTypes` prompt.
 
 `domain-{type}`::
-Domain classes for a presentation tier (e.g. `domain-rest`, `domain-graphql`).
+Domain classes for a presentation tier (e.g. `domain-rest`, `domain-graphql`) — these map
+to/from the service-tier domain objects ("the service domain deps").
 +
 _Package_: `{base.package}.domain.{type}` +
-_Depends on_: `common-domain`
+_Depends on_: `common-domain`, every `domain-service`/`domain-service-{name}` module; if
+`includeSpring=true`, also `spring-boot-starter-validation`
 
 `presentation-{type}`::
 Request-handling classes — controllers, resolvers, etc.
@@ -116,10 +185,13 @@ It contains:
 
 * `<parent>` — inherits `spring-boot-starter-parent` (4.1.0) via an empty `<relativePath/>`, supplying Spring dependency management and plugin defaults
 * `<packaging>pom</packaging>`
+* `<name>`/`<description>` derived from `appName` (see <<appname-naming>>)
 * `<modules>` — all sibling modules referenced as `../module` relative paths, sorted alphabetically
 * `<dependencyManagement>` — every module pinned to `${project.version}`, split into a TEST section
   (`acceptance-tests` and `common-testing`, at `<scope>test</scope>`) and a PROD section (all other
-  modules, plus managed third-party dependencies such as `spring-core`)
+  modules, plus managed third-party dependencies such as `spring-core`, `datasource-proxy-spring-boot-starter`,
+  and `spring-boot-admin-starter-client` — the latter two pinned via their own version properties
+  since they aren't part of the Spring Boot BOM)
 * Common properties: Java 21 via `maven.compiler.release`; UTF-8 source encoding
 * `<pluginManagement>` — pinned versions for `maven-compiler-plugin`, `maven-failsafe-plugin`,
   `maven-jar-plugin` (with `skipIfEmpty=true`), `maven-surefire-plugin`,

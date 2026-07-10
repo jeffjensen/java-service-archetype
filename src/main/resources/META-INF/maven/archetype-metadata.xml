@@ -12,6 +12,12 @@
 
     PROMPT GUIDE
     ============
+    appName
+      Brief, human-readable application name: capitalized words separated by spaces,
+      e.g. "Order Service". Drives generated class names (spaces removed, e.g.
+      OrderService), generated property values (spaces removed and lowercased, e.g.
+      orderservice), and prose/Javadoc (used unmodified).
+
     integrations
       Comma-separated list of  type:name  pairs.
       Supported types: database, rest, graphql, file, email, jms, kafka, ...
@@ -34,6 +40,11 @@
 
     <requiredProperty key="version">
       <defaultValue>1.0.0-SNAPSHOT</defaultValue>
+    </requiredProperty>
+
+    <requiredProperty key="appName">
+      <!-- No default: every project needs its own name.
+           Brief, capitalized words separated by spaces, e.g. "Order Service". -->
     </requiredProperty>
 
     <requiredProperty key="integrations">
@@ -62,9 +73,10 @@
            spring-boot-starter-parent, every app-composed module gets a @Configuration
            class plus the Spring Boot starter suited to its role (common-domain carries
            the core spring-boot-starter that the plain modules inherit transitively), and
-           app gets the Application class plus the role starters and entry-point classes its
-           composition calls for (web + AppServletInitializer for a rest presentation,
-           data-jpa + @EnableTransactionManagement for a database integration).
+           app gets the Application class, is always a monitorable web service regardless
+           of presentationTypes (core starter, webmvc, actuator, Spring Boot Admin client,
+           AppServletInitializer), and additionally adds data-jpa + @EnableTransactionManagement
+           when a database integration is present.
            false: omit all Spring artifacts (configs, classes, and pom items). -->
     </requiredProperty>
 
