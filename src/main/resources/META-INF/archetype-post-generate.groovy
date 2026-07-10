@@ -96,7 +96,9 @@ def modulePom = { String gId, String prefix, String ver,
     if (deps) {
         def renderDep = { dep ->
             def isModuleRef = dep instanceof Map && dep.module
-            def dGroup    = (dep instanceof Map && !isModuleRef) ? dep.groupId : gId
+            // Internal (sibling-module) deps always share this reactor's groupId, so reference it
+            // via the Maven property rather than repeating the literal value in every dependency.
+            def dGroup    = (dep instanceof Map && !isModuleRef) ? dep.groupId : '${project.groupId}'
             def dArtifact = isModuleRef ? "${prefix}-${dep.module}" : ((dep instanceof Map) ? dep.artifactId : "${prefix}-${dep}")
             def dScope = (dep instanceof Map && dep.scope) ? "\n      <scope>${dep.scope}</scope>" : ''
             def dExclusions = ''
@@ -370,7 +372,7 @@ def dmEntry = { String mod ->
     def scopeLine = (mod in DM_TEST_MODULES) ? '\n        <scope>test</scope>' : ''
     """\
       <dependency>
-        <groupId>${groupId}</groupId>
+        <groupId>\${project.groupId}</groupId>
         <artifactId>${artifactId}-${mod}</artifactId>
         <version>\${project.version}</version>${scopeLine}
       </dependency>"""
