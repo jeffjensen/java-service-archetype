@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+tone_instructions: >-
+  Prioritize correctness and the documented invariants over style. Code style
+  (immutability, JavaDoc, constructor injection, blank-line-after-brace) is a
+  convention here, not a merge blocker — do not gate a review on it.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false  # solo maintainer — don't self-block merges
+  poem: false
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true  # re-review every push (relevant after a rebase)
+    base_branches:
+      - main
+  path_filters:
+    - "!**/target/**"
+    - "!.jackknife/**"
+  path_instructions:
+    - path: "src/main/resources/META-INF/archetype-post-generate.groovy"
+      instructions: >-
+        The only file that drives generation. It runs after the Archetype Plugin and writes
+        every pom.xml, the src/main and src/test trees (a package-info.java only under
+        src/main/java, never src/test/java), deletes the placeholder
+        archetype-resources/pom.xml, and writes the parent/ version-update wrappers. Preserve
+        the invariants: module naming (domain-{abbrev}-{name}, integration-{abbrev}-{name},
+        service or service-{name}); typeAbbrev maps database -> db and passes everything else
+        through; app depends on all modules except acceptance-tests, common-testing and
+        itself; common-testing depends on every domain module and nothing depends back on it
+        except service/service-{name}, keeping the graph acyclic. A logic change here needs a
+        matching or new fixture under src/test/resources/projects/.
+    - path: "src/main/resources/archetype-resources/**"
+      instructions: >-
+        A required placeholder tree that the Groovy script deletes and regenerates — not real
+        sources. '$', '${...}', '#[[ ]]#' raw blocks and '@project.version@' are intentional
+        Velocity placeholders, not bugs.
+    - path: "src/main/resources/META-INF/maven/archetype-metadata.xml"
+      instructions: >-
+        Declares the four required user properties (appName, integrations, serviceAreas,
+        presentationTypes) that archetype-post-generate.groovy consumes. Keep it in lockstep
+        with that script.
+    - path: "src/test/resources/projects/**"
+      instructions: >-
+        Archetype integration-test fixtures — archetype.properties + goal.txt + verify.groovy
+        per project. The Archetype IT runner rejects empty property values, so a lone ','
+        is the deliberate placeholder for an empty list
+        (integrations/serviceAreas/presentationTypes), not a typo. appName always needs a
+        real brief name. A new fixture needs all four required properties present and
+        non-empty.
+    - path: ".github/**"
+      instructions: >-
+        actionlint and zizmor also run here as a blocking "Lint workflows" CI job and on a
+        weekly schedule; zizmor's policy lives in .github/zizmor.yml.
+        The `# zizmor: ignore[...]` suppressions, the tag-pinned first-party `actions/*`
+        refs, and the workspace-relative `./.github/actions/...` action syntax are
+        deliberate policy — do not re-raise them in prose review.
+  tools:
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"
+  learnings:
+    scope: auto
