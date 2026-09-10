@@ -12,6 +12,8 @@ on:
       - '**/*.adoc'
       - '**/*.md'
 
+permissions: {}
+
 env:
   MAVEN_COMMAND: ./mvnw
   MAVEN_CLI_COMMON: "-e -B"
@@ -25,12 +27,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/jdk-setup
       - name: Build and verify
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean verify
+
+  # Isolated from the build job so its write-scoped token is never present
+  # while a build of pull-request code runs. Only fires for pushes to main.
+  submit-dependencies:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/jdk-setup
       - name: Submit dependencies to GitHub
-        if: github.actor != 'dependabot[bot]'
-        uses: advanced-security/maven-dependency-submission-action@v5
+        uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
